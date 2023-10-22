@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+  <title>Hello World</title>
+  <head>
+    <style>
+      body {
+        margin: 0;
+        background: #000;
+        display: flex;
+        align-items: center;
+        height: 100vh;
+      }
+      body.running {
+        cursor: none;
+      }
+      #c {
+        width: 100%;
+      }
+      .progressbar {
+        position: absolute;
+        top: 47%;
+        bottom: 47%;
+        left: 20%;
+        right: 20%;
+        border: 3px solid white;
+        padding: 3px;
+      }
+      .progressbar * {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-transform: uppercase;
+        background: white;
+        height: 100%;
+        font-family: monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="c" width="1280" height="720"></canvas>
+    <script type="module">
+      import "./main.ts";
+    </script>
+  </body>
+</html>
