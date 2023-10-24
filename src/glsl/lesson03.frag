@@ -18,12 +18,136 @@ in mat4 VIEW_MATRIX;
 
 out vec4 FRAG_COLOR;
 
-float sphereSDF(vec3 p) {
-    return length(p) - 1.0f;
+
+
+// Rotation matrix around the X axis.
+mat3 rotateX(float theta) {
+    float c = cos(theta);
+    float s = sin(theta);
+    return mat3(
+        vec3(1, 0, 0),
+        vec3(0, c, -s),
+        vec3(0, s, c)
+    );
+}
+
+// Rotation matrix around the Y axis.
+mat3 rotateY(float theta) {
+    float c = cos(theta);
+    float s = sin(theta);
+    return mat3(
+        vec3(c, 0, s),
+        vec3(0, 1, 0),
+        vec3(-s, 0, c)
+    );
+}
+
+// Rotation matrix around the Z axis.
+mat3 rotateZ(float theta) {
+    float c = cos(theta);
+    float s = sin(theta);
+    return mat3(
+        vec3(c, -s, 0),
+        vec3(s, c, 0),
+        vec3(0, 0, 1)
+    );
+}
+
+
+
+
+float opUnion( float d1, float d2 ) { return min(d1,d2); }
+
+float opSubtraction( float d1, float d2 ) { return max(-d1,d2); }
+
+float opIntersection( float d1, float d2 ) { return max(d1,d2); }
+
+
+float opSmoothUnion( float d1, float d2, float k ) {
+    float h = clamp( 0.5 + 0.5*(d2-d1)/k, 0.0, 1.0 );
+    return mix( d2, d1, h ) - k*h*(1.0-h); }
+
+
+float opSmoothSubtraction( float d1, float d2, float k ) {
+    float h = clamp( 0.5 - 0.5*(d2+d1)/k, 0.0, 1.0 );
+    return mix( d2, -d1, h ) + k*h*(1.0-h); }
+
+
+float sphereSDF(vec3 p, vec3 ball, float r) {
+    return length(p - ball) - r;
+}
+
+float sdTorus( vec3 p, vec2 t ) {
+  vec2 q = vec2(length(p.xz)-t.x,p.y);
+  return length(q)-t.y;
+}
+
+float moduloFilter() {
+  return mod(gl_FragCoord.x, 4.0f);
 }
 
 float sceneSDF(vec3 p) {
-    return sphereSDF(p);
+    vec3 ball1 = vec3(sin(TIME/1000.f), cos(TIME/1000.f), 0.0f);
+    vec3 ball2 = vec3(sin(TIME/1000.f + 2.0f/3.0f*PI), cos(TIME/1000.f + 2.0f/3.0f*PI), 0.0f);
+    vec3 ball3 = vec3(sin(TIME/1000.f + 4.0f/3.0f*PI), cos(TIME/1000.f + 4.0f/3.0f*PI), 0.0f);
+
+    float dist1 = sphereSDF(p, ball1,0.5f);   
+    float dist2 = sphereSDF(p, ball2,0.5f);  
+    float dist3 = sphereSDF(p, ball3,0.5f);  
+
+    vec3 ball4 = vec3(sin(0.0f), cos(0.0f), 0.0f);
+    float dist4 = sphereSDF(p, ball4,0.5f);
+
+    
+    //return opSmoothUnion(opUnion(dist1, opUnion(dist2, dist3)), dist4, 0.5f);
+    float torus = sdTorus(rotateZ(0.4f*TIME/490.f)*rotateX(TIME/1000.f)*p, vec2(0.6f, 0.4f));
+
+    float torus2 = sdTorus(rotateX(PI/2.0f)*p, vec2(1.0f, 0.1f));
+
+
+    float blorbos = opSmoothUnion(opSmoothUnion( opSmoothUnion(dist1, dist2, 0.5f), dist3, 0.5f), dist4, 0.5f);
+
+    float monster1 = opSmoothSubtraction(blorbos, torus,0.4f);
+
+    float monster2 = opSmoothUnion(blorbos, torus2, 0.2f);
+
+    float bigBall = sphereSDF(p, vec3(0,0,0),1.0f + cos(TIME/5000.f));
+
+    float monster3 = opSmoothUnion(dist1, torus2, mod(gl_FragCoord.x, 4.0f)/4.0);
+
+
+    mat3 xrot = rotateX(PI/2.0f+TIME/800.f);
+    mat3 yrot = rotateY(PI/2.0f+TIME/900.f);
+    mat3 zrot = rotateZ(PI/2.0f+TIME/1000.f);
+
+    float torusA = sdTorus(xrot*yrot*p, vec2(1.5f, 0.1f));
+    float torusB = sdTorus(yrot*zrot*p, vec2(1.4f, 0.1f));
+    float torusC = sdTorus(zrot*xrot*p, vec2(1.3f, 0.1f));
+
+
+
+    float ballA = sphereSDF(p, vec3(0,0,0),1.0f+(cos(gl_FragCoord.x/6.f+TIME/200.f)+sin(gl_FragCoord.x/5.f+TIME/200.f))/6.0);
+    float ballB = sphereSDF(p, vec3(0,0,0),0.7f+moduloFilter()/10.0f+(sin(TIME/500.f)*0.5+0.5)/4.0 ); 
+     
+    float monster4 = opSmoothUnion(ballB,opSmoothUnion(torusA, opSmoothUnion(torusB, torusC, 0.5), 0.5), 0.5);
+
+    float torusD = sdTorus(rotateX(gl_FragCoord.x/200.f+TIME/300.f)*rotateZ(gl_FragCoord.y/200.f+TIME/300.f)*p , vec2(1.5f, 0.1f));
+    float torusE = sdTorus(xrot*p , vec2(1.5f, 0.1f));
+    
+    float monster5 = opSmoothUnion(torusD, torusE, 0.5f);
+
+    //return monster4;
+    if ((TIME + gl_FragCoord.x) <17000.f) {
+    return opUnion(opIntersection(monster1, bigBall),opSubtraction(bigBall,monster2)) ;}
+    if ((TIME + gl_FragCoord.x) < 22000.f) {
+        return monster3;
+    }
+    if ((TIME + gl_FragCoord.x) < 26000.f) {
+        return monster4;
+    }
+    if ((TIME + gl_FragCoord.x) < 35000.f) {
+        return monster5;
+    }
 }
 
 vec3 rayDirection(float fieldOfView, vec2 size, vec2 fragCoord) {
@@ -117,14 +241,18 @@ vec3 phongIllumination(vec3 k_a, vec3 k_d, vec3 k_s, float alpha, vec3 p, vec3 e
     vec3 i_light2Intensity = vec3(0.4f, 0.4f, 0.4f);
     vec3 i_light2 = phongContribForLight(k_d, k_s, alpha, p, eye, i_light2Pos, i_light2Intensity);
 
-    return i_ambientColor + i_light1 + i_light2;
+    vec3 i_light3Pos = vec3(0.0f, 4.0f, 0.0f);
+    vec3 i_light3Intensity = vec3(1.7f, 1.7f, 1.7f);
+    vec3 i_light3 = phongContribForLight(k_d, k_s, alpha, p, eye, i_light3Pos, i_light3Intensity);
+
+    return i_ambientColor + i_light1 + i_light2 + i_light3;
 }
 
 vec3 calcEnvMaterial(vec3 p, vec3 eye) {
-    vec3 i_K_a = vec3(0.0f, 0.15f, 0.2f);
-    vec3 i_K_d = vec3(0.0f, 0.2f, 0.7f);
-    vec3 i_K_s = vec3(0.5f, 1.0f, 0.8f);
-    float i_shininess = 50.0f;
+    vec3 i_K_a = vec3(0.0f, 0.0f, 0.0f);
+    vec3 i_K_d = vec3(0.2f, 0.2, 0.2f);
+    vec3 i_K_s = vec3(1.0f, 1.0f, 1.0f);
+    float i_shininess = 10.0f;
     return phongIllumination(i_K_a, i_K_d, i_K_s, i_shininess, p, eye);
 }
 

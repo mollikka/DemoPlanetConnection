@@ -18,12 +18,14 @@ in mat4 VIEW_MATRIX;
 
 out vec4 FRAG_COLOR;
 
-float sphereSDF(vec3 p) {
-    return length(p) - 1.0f;
+float sphereSDF(vec3 p, vec3 ball) {
+    return length(p - ball) - 1.0f;
 }
 
 float sceneSDF(vec3 p) {
-    return sphereSDF(p);
+    vec3 ball1 = vec3(sin(TIME/1000.f), cos(TIME/1000.f), 0.0f);
+    vec3 ball2 = vec3(sin(TIME/1000.f + PI), cos(TIME/1000.f + PI), 0.0f);
+    return min(sphereSDF(p, ball1), sphereSDF(p, ball2));
 }
 
 vec3 rayDirection(float fieldOfView, vec2 size, vec2 fragCoord) {

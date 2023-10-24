@@ -2,7 +2,7 @@ import { Rectangle } from "./Rectangle";
 import { ShaderProgram } from "./ShaderProgram";
 import { config } from "./config";
 import vertexShaderSrc from "./glsl/default.vert";
-import fragmentShaderSrc from "./glsl/lesson01.frag";
+import fragmentShaderSrc from "./glsl/lesson03.frag";
 import { vec3 } from "./vectors";
 
 const run = async () => {
