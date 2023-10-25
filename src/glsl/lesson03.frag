@@ -86,6 +86,10 @@ float moduloFilter() {
   return mod(gl_FragCoord.x, 4.0f);
 }
 
+float sinTimeFilter(float frequency) {
+  return 0.5*sin(frequency*TIME/1000.0)+0.5;
+}
+
 float sceneSDF(vec3 p) {
     vec3 ball1 = vec3(sin(TIME/1000.f), cos(TIME/1000.f), 0.0f);
     vec3 ball2 = vec3(sin(TIME/1000.f + 2.0f/3.0f*PI), cos(TIME/1000.f + 2.0f/3.0f*PI), 0.0f);
@@ -98,8 +102,6 @@ float sceneSDF(vec3 p) {
     vec3 ball4 = vec3(sin(0.0f), cos(0.0f), 0.0f);
     float dist4 = sphereSDF(p, ball4,0.5f);
 
-    
-    //return opSmoothUnion(opUnion(dist1, opUnion(dist2, dist3)), dist4, 0.5f);
     float torus = sdTorus(rotateZ(0.4f*TIME/490.f)*rotateX(TIME/1000.f)*p, vec2(0.6f, 0.4f));
 
     float torus2 = sdTorus(rotateX(PI/2.0f)*p, vec2(1.0f, 0.1f));
@@ -136,7 +138,37 @@ float sceneSDF(vec3 p) {
     
     float monster5 = opSmoothUnion(torusD, torusE, 0.5f);
 
-    //return monster4;
+
+
+
+    float monster6 = sdTorus(xrot*p , vec2(1.5f, sinTimeFilter(1.0+gl_FragCoord.x/1000.0)));
+
+    float multiplier = (TIME-6000.0)/1000.f;
+    float monster7 = opSmoothUnion(blorbos, torus2, 0.2*(1.0-multiplier) + multiplier*sin(length(vec2(gl_FragCoord.x, gl_FragCoord.y)-RESOLUTION.xy/2.0)/8.f));
+
+    float ballC1 = sphereSDF(p, rotateZ(1.*PI/3.0f+TIME/1000.f)*vec3(0.0,4.0-TIME/2000.f,1.-TIME/2000.f),0.5f); 
+    float ballC2 = sphereSDF(p, rotateZ(2.*PI/3.0f+TIME/1000.f)*vec3(0.0,4.0-TIME/2000.f,1.-TIME/2000.f),0.5f); 
+    float ballC3 = sphereSDF(p, rotateZ(3.*PI/3.0f+TIME/1000.f)*vec3(0.0,4.0-TIME/2000.f,1.-TIME/2000.f),0.5f); 
+    float ballC4 = sphereSDF(p, rotateZ(4.*PI/3.0f+TIME/1000.f)*vec3(0.0,4.0-TIME/2000.f,1.-TIME/2000.f),0.5f); 
+    float ballC5 = sphereSDF(p, rotateZ(5.*PI/3.0f+TIME/1000.f)*vec3(0.0,4.0-TIME/2000.f,1.-TIME/2000.f),0.5f); 
+    float ballC6 = sphereSDF(p, rotateZ(6.*PI/3.0f+TIME/1000.f)*vec3(0.0,4.0-TIME/2000.f,1.-TIME/2000.f),0.5f); 
+
+    float monster8 = opSmoothUnion(ballC1,opSmoothUnion(ballC2,opSmoothUnion(ballC3,opSmoothUnion(ballC4, opSmoothUnion(ballC5, ballC6,3.0),2.5),2.0),1.5),1.0);
+
+
+    float ballD1 = sphereSDF(p, rotateX(TIME/5000.)*vec3(0.0,1.0,1.0),0.5f); 
+    float ballD2 = sphereSDF(p, rotateY(TIME/5000.)*vec3(1.0,0.0,1.0),0.5f); 
+    float ballD3 = sphereSDF(p, vec3(-2.0,-1.0,-2.0),0.5f); 
+    float ballD5 = sphereSDF(p, vec3(.0,sin(TIME/5000.),0.0),0.5f); 
+
+    float monster9 = opUnion(ballD1, opUnion(ballD2,opUnion(ballD3,ballD5)));
+
+
+    /*if ((TIME) <6000.f) {
+        return monster2;
+    }
+    return monster7;*/
+
     if ((TIME + gl_FragCoord.x) <17000.f) {
     return opUnion(opIntersection(monster1, bigBall),opSubtraction(bigBall,monster2)) ;}
     if ((TIME + gl_FragCoord.x) < 22000.f) {
@@ -148,6 +180,7 @@ float sceneSDF(vec3 p) {
     if ((TIME + gl_FragCoord.x) < 35000.f) {
         return monster5;
     }
+    return monster6;
 }
 
 vec3 rayDirection(float fieldOfView, vec2 size, vec2 fragCoord) {
@@ -175,6 +208,16 @@ float shortestDistanceToSurface(vec3 eye, vec3 marchingDirection) {
 
 vec3 estimateNormal(vec3 p) {
     return normalize(vec3(sceneSDF(vec3(p.x + EPSILON, p.y, p.z)) - sceneSDF(vec3(p.x - EPSILON, p.y, p.z)), sceneSDF(vec3(p.x, p.y + EPSILON, p.z)) - sceneSDF(vec3(p.x, p.y - EPSILON, p.z)), sceneSDF(vec3(p.x, p.y, p.z + EPSILON)) - sceneSDF(vec3(p.x, p.y, p.z - EPSILON))));
+}
+
+
+bool rayObscured(vec3 lightPos, vec3 p) {
+    vec3 pN = estimateNormal(p);
+    vec3 lightToP = normalize(p-lightPos);
+    float rayDistance = shortestDistanceToSurface(lightPos, lightToP);
+    vec3 hitPosition = lightPos + rayDistance * lightToP;
+
+    return distance(hitPosition, p) > 0.01;
 }
 
 /**
@@ -206,6 +249,7 @@ vec3 phongContribForLight(vec3 k_d, vec3 k_s, float alpha, vec3 p, vec3 eye, vec
     // Light not visible from this point on the surface
         return vec3(0.0f, 0.0f, 0.0f);
     }
+    if (rayObscured(lightPos, p)) return vec3(0,0,0);
 
     if (dotRV < 0.0f) {
     // Light reflection in opposite direction as viewer, apply only diffuse
@@ -269,6 +313,16 @@ void main() {
     } else {
         vec3 p = CAMERA_POS + distance * worldDir;
         color = calcEnvMaterial(p, CAMERA_POS);
+
+        vec3 pNormal = estimateNormal(p);
+        vec3 reflectionDirection = reflect(worldDir, pNormal);
+        float reflectionDistance = shortestDistanceToSurface(p+pNormal*0.01, reflectionDirection);
+        
+        if (reflectionDistance <= MAX_DIST - EPSILON) {
+            vec3 reflectionHit = p + reflectionDistance * reflectionDirection;
+
+            color = color*0.5 + calcEnvMaterial(reflectionHit, CAMERA_POS)*0.5;
+        }
     }
 
     FRAG_COLOR = vec4(color, 1.0f);
