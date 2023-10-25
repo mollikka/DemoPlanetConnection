@@ -18,7 +18,14 @@ const run = async () => {
   const shader = new ShaderProgram(gl, vertexShaderSrc, fragmentShaderSrc);
   const [shaderVertexPos] = shader.vertexAttributes("VERTEX_POS");
 
+  const startTime = new Date().getTime();
+  const bpm = 100;
+
   const renderNext = (time: DOMHighResTimeStamp) => {
+    const now = new Date().getTime() - startTime;
+    const seconds = now * 0.001;
+    const beats = (seconds / 60.0) * bpm;
+
     screen.bind(shaderVertexPos);
     shader.use();
     shader.set({
@@ -26,6 +33,7 @@ const run = async () => {
       CAMERA_LOOKAT: vec3(0.0, 0.0, 0.0),
       CAMERA_UP: vec3(0.0, 1.0, 0.0),
       TIME: time,
+      BEATS: beats,
     });
     shader.setResolution(config.canvas.width, config.canvas.height);
     screen.render();
