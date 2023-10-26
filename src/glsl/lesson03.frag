@@ -97,6 +97,13 @@ float activate(float x) {
     return tanh(x*5.0)*0.5+0.5;
 }
 
+float bezier(float x, float start, float end) {
+    if (x<start) return 0.0;
+    if (x>end) return 1.0;
+    float t = ((x-end)/(end-start))+1.0;
+    return t*t * (3.0f - 2.0f * t);
+}
+
 float sceneSDF(vec3 p) {
     vec3 ball1 = vec3(sin(TIME/1000.f), cos(TIME/1000.f), 0.0f);
     vec3 ball2 = vec3(sin(TIME/1000.f + 2.0f/3.0f*PI), cos(TIME/1000.f + 2.0f/3.0f*PI), 0.0f);
@@ -171,34 +178,29 @@ float sceneSDF(vec3 p) {
     float monster9 = opUnion(ballD1, opUnion(ballD2,opUnion(ballD3,ballD5)));
 
     float beat = 0.5*exp2(sin(BEATS*2.0*PI));
-    //float beat = 5.0*exp(-exp2(BEATS-2.0));
+    mat3 rot = rotateZ(PI*bezier(BEATS, 4.0*4.0, 6.0*4.0))*rotateX(PI/4.0*bezier(BEATS, 4.0*4.0+2.0, 6.0*4.0));
+    float popIn = activate(BEATS-1.5f)*0.2f;
 
-    float ballE01 = sphereSDF(p,activate(BEATS-1.0)*vec3(0,1.0,1.0),0.1f); 
-    float ballE02 = sphereSDF(p,activate(BEATS-2.0)*vec3(0,-1.0,-1.0),0.1f); 
-    float ballE03 = sphereSDF(p,activate(BEATS-3.0)*vec3(0,1.0,-1.0),0.1f); 
-    float ballE04 = sphereSDF(p,activate(BEATS-4.0)*vec3(0,-1.0,1.0),0.1f); 
+    float ballE01 = sphereSDF(p,activate(BEATS-5.0*4.0)*rot*vec3(0,1.0,1.0),popIn); 
+    float ballE02 = sphereSDF(p,activate(BEATS-5.0*4.0)*rot*vec3(0,-1.0,-1.0),popIn); 
+    float ballE03 = sphereSDF(p,activate(BEATS-5.0*4.0)*rot*vec3(0,1.0,-1.0),popIn); 
+    float ballE04 = sphereSDF(p,activate(BEATS-5.0*4.0)*rot*vec3(0,-1.0,1.0), popIn); 
         
-    float ballE05 = sphereSDF(p, activate(BEATS-5.0)*vec3(1.0,0,1.0),0.1f); 
-    float ballE06 = sphereSDF(p, activate(BEATS-6.0)*vec3(-1.0,0,-1.0),0.1f); 
-    float ballE07 = sphereSDF(p, activate(BEATS-7.0)*vec3(1.,0,-1.0),0.1f); 
-    float ballE08 = sphereSDF(p, activate(BEATS-8.0)*vec3(-1.0,0,1.0),0.1f);     
+    float ballE05 = sphereSDF(p, activate(BEATS-6.0*4.0)*rot*vec3(1.0,0,1.0), popIn); 
+    float ballE06 = sphereSDF(p, activate(BEATS-6.0*4.0)*rot*vec3(-1.0,0,-1.0), popIn); 
+    float ballE07 = sphereSDF(p, activate(BEATS-6.0*4.0)*rot*vec3(1.,0,-1.0), popIn); 
+    float ballE08 = sphereSDF(p, activate(BEATS-6.0*4.0)*rot*vec3(-1.0,0,1.0), popIn);     
     
-    float ballE09 = sphereSDF(p, activate(BEATS-9.0)*vec3(1.0,1.0,0),0.1f); 
-    float ballE10 = sphereSDF(p, activate(BEATS-10.0)*vec3(-1.0,-1.0,0),0.1f); 
-    float ballE11 = sphereSDF(p, activate(BEATS-11.0)*vec3(1.0,-1.0,0),0.1f); 
-    float ballE12 = sphereSDF(p, activate(BEATS-12.0)*vec3(-1.0,1.0,0),0.1f); 
+    float ballE09 = sphereSDF(p, activate(BEATS-1.0*4.0-1.5)*rot*vec3(1.0,1.0,0), popIn); 
+    float ballE10 = sphereSDF(p, activate(BEATS-2.0*4.0-1.5)*rot*vec3(-1.0,-1.0,0), popIn); 
+    float ballE11 = sphereSDF(p, activate(BEATS-3.0*4.0-1.5)*rot*vec3(1.0,-1.0,0), popIn); 
+    float ballE12 = sphereSDF(p, activate(BEATS-4.0*4.0-1.5)*rot*vec3(-1.0,1.0,0), popIn); 
 
-    float lilballs = opUnion(ballE01,opUnion(ballE02,opUnion(ballE03,opUnion(ballE04,opUnion(ballE05,opUnion(ballE06,opUnion(ballE07,opUnion(ballE08,opUnion(ballE09,opUnion(ballE10,opUnion(ballE11,ballE12)))))))))));
+    float lilballs = opSmoothUnion(ballE01,opSmoothUnion(ballE02,opSmoothUnion(ballE03,opSmoothUnion(ballE04,opSmoothUnion(ballE05,opSmoothUnion(ballE06,opSmoothUnion(ballE07,opSmoothUnion(ballE08,opSmoothUnion(ballE09,opSmoothUnion(ballE10,opSmoothUnion(ballE11,ballE12,0.6),0.6),0.6),0.6),0.6),0.6),0.6),0.6),0.6),0.6),0.6);
 
-    float monster10 = lilballs;//opSmoothUnion(lilballs,sphereSDF(p, vec3(0,0,0), 0.5+beat*0.5),1.0);
-
-    //float monster10 = sphereSDF(p, vec3(0,0,0), activate(BEATS-5.0));
+    float monster10 = lilballs;
 
     return monster10;
-    /*if ((TIME) <6000.f) {
-        return monster2;
-    }
-    return monster7;*/
 
     if ((TIME + gl_FragCoord.x) <17000.f) {
     return opUnion(opIntersection(monster1, bigBall),opSubtraction(bigBall,monster2)) ;}
