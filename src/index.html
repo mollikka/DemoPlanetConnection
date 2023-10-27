@@ -39,7 +39,12 @@
   <body>
     <canvas id="c" width="1280" height="720"></canvas>
     <script type="module">
-      import "./main.ts";
+      import { run } from "./main.ts";
+      document.onclick = start;
+
+      function start() {
+        run();
+      }
     </script>
   </body>
 </html>

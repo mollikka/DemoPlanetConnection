@@ -5,7 +5,7 @@ import vertexShaderSrc from "./glsl/default.vert";
 import fragmentShaderSrc from "./glsl/lesson03.frag";
 import { vec3 } from "./vectors";
 
-const run = async () => {
+export const run = async () => {
   await delay(1000);
 
   const canvas = document.querySelector<HTMLCanvasElement>("canvas")!;
@@ -62,5 +62,3 @@ function delay(milliseconds: number) {
     setTimeout(resolve, milliseconds);
   });
 }
-
-run();
