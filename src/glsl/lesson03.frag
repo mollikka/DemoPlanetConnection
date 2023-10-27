@@ -141,6 +141,7 @@ float introScene(vec3 p, float beats) {
 }
 
 float sceneRingWithBallsEaseIn(vec3 p, float beats) {  
+    float rot = PI/3.0*beats;
 
     float easeIn = bezier(beats, 0.0, 2.0);
     float easeOut = bezier(beats, 6.0, 12.0);
@@ -161,12 +162,12 @@ float sceneRingWithBallsEaseIn(vec3 p, float beats) {
     vec3 ball11Start = startRot*vec3(1.0,-1.0,0); 
     vec3 ball12Start = startRot*vec3(-1.0,1.0,0); 
 
-    vec3 ball1Main = vec3(sin(beats+PI/3.0*3.0),cos(beats+PI/3.0*3.0),0); 
-    vec3 ball2Main = vec3(sin(beats),cos(beats),0); 
-    vec3 ball5Main = vec3(sin(beats+PI/3.0*4.0),cos(beats+PI/3.0*4.0),0); 
-    vec3 ball8Main = vec3(sin(beats+PI/3.0*2.0),cos(beats+PI/3.0*2.0),0); 
-    vec3 ball10Main = vec3(sin(beats+PI/3.0*1.0),cos(beats+PI/3.0*1.0),0); 
-    vec3 ball11Main = vec3(sin(beats+PI/3.0*5.0),cos(beats+PI/3.0*5.0),0); 
+    vec3 ball1Main = vec3(sin(rot+PI/3.0*3.0),cos(rot+PI/3.0*3.0),0); 
+    vec3 ball2Main = vec3(sin(rot),cos(rot),0); 
+    vec3 ball5Main = vec3(sin(rot+PI/3.0*4.0),cos(rot+PI/3.0*4.0),0); 
+    vec3 ball8Main = vec3(sin(rot+PI/3.0*2.0),cos(rot+PI/3.0*2.0),0); 
+    vec3 ball10Main = vec3(sin(rot+PI/3.0*1.0),cos(rot+PI/3.0*1.0),0); 
+    vec3 ball11Main = vec3(sin(rot+PI/3.0*5.0),cos(rot+PI/3.0*5.0),0); 
 
     vec3 fuckOffPlace = vec3(0,0,-MAX_DIST*1.5); 
 
@@ -203,74 +204,70 @@ float sceneRingWithBallsEaseIn(vec3 p, float beats) {
 }
 
 float sceneRingWithBallsJuggle(vec3 p, float beats) {  
+    float rot = PI/3.0*beats;
 
-    vec3 pos1 = vec3(sin(beats+PI/6.0),cos(beats+PI/6.0),0);
-    vec3 pos2 = vec3(sin(beats+PI/3.0*1.0+PI/6.0),cos(beats+PI/3.0*1.0+PI/6.0),0); 
-    vec3 pos3 = vec3(sin(beats+PI/3.0*2.0+PI/6.0),cos(beats+PI/3.0*2.0+PI/6.0),0); 
-    vec3 pos4 = vec3(sin(beats+PI/3.0*3.0+PI/6.0),cos(beats+PI/3.0*3.0+PI/6.0),0); 
-    vec3 pos5 = vec3(sin(beats+PI/3.0*4.0+PI/6.0),cos(beats+PI/3.0*4.0+PI/6.0),0); 
-    vec3 pos6 = vec3(sin(beats+PI/3.0*5.0+PI/6.0),cos(beats+PI/3.0*5.0+PI/6.0),0); 
+    vec3 pos1 = vec3(sin(rot),cos(rot),0);
+    vec3 pos2 = vec3(sin(rot+PI/3.0*1.0),cos(rot+PI/3.0*1.0),0); 
+    vec3 pos3 = vec3(sin(rot+PI/3.0*2.0),cos(rot+PI/3.0*2.0),0); 
+    vec3 pos4 = vec3(sin(rot+PI/3.0*3.0),cos(rot+PI/3.0*3.0),0); 
+    vec3 pos5 = vec3(sin(rot+PI/3.0*4.0),cos(rot+PI/3.0*4.0),0); 
+    vec3 pos6 = vec3(sin(rot+PI/3.0*5.0),cos(rot+PI/3.0*5.0),0); 
 
-    float t1A = (1.0-bezier(beats, 0.0, 3.5));
-    float t1B = (bezier(beats, 0.5, 4.0));
+    float t1A = (1.0-bezier(beats, 8.0, 11.5));
+    float t1B = (bezier(beats, 8.5, 12.0));
 
-    float t2A = (1.0-bezier(beats, 4.0, 7.5));
-    float t2B = (bezier(beats, 4.5, 8.0));
+    float t2A = (1.0-bezier(beats, 16.0, 19.5));
+    float t2B = (bezier(beats, 16.5, 20.0));
 
-    float easeOut1 = bezier(beats, 22.0, 34.0);
-    float easeOut2 = bezier(beats, 32.0, 38.0);
+    float easeOut1 = bezier(beats, 24.0, 34.0);
+    float chunkyTransform = (bezier(beats, 8.5, 12.0));
 
     vec3 fuckOffPlace = vec3(0,0,-MAX_DIST*1.5); 
 
     vec3 ballPA = pos1 * t2A + pos4 * t2B + easeOut1*fuckOffPlace;
-    vec3 ballPB = pos2 * t1A + pos4 * t1B + easeOut2*fuckOffPlace;
-    vec3 ballPC = pos3 * t2A + pos6 * t2B + easeOut1*fuckOffPlace;;
-    vec3 ballPD = pos4* t1A + pos6 * t1B  + easeOut2*fuckOffPlace;
-    vec3 ballPE = pos5 * t2A + pos2 * t2B + easeOut1*fuckOffPlace;;
-    vec3 ballPF = pos6* t1A + pos2 * t1B  + easeOut2*fuckOffPlace;
+    vec3 ballPB = pos2 * t1A + pos4 * t1B;
+    vec3 ballPC = pos3 * t2A + pos6 * t2B + easeOut1*fuckOffPlace;
+    vec3 ballPD = pos4* t1A + pos6 * t1B;
+    vec3 ballPE = pos5 * t2A + pos2 * t2B + easeOut1*fuckOffPlace;
+    vec3 ballPF = pos6* t1A + pos2 * t1B;
 
     float ballA = sphereSDF(p, ballPA,0.2f);   
-    float ballB = sphereSDF(p, ballPB,0.2f);  
+    float ballB = sphereSDF(p, ballPB,0.2f+chunkyTransform*0.2f);  
     float ballC = sphereSDF(p, ballPC,0.2f);
-    float ballD = sphereSDF(p, ballPD,0.2f);
+    float ballD = sphereSDF(p, ballPD,0.2f+chunkyTransform*0.2f);
     float ballE = sphereSDF(p, ballPE,0.2f);
-    float ballF = sphereSDF(p, ballPF,0.2f);
+    float ballF = sphereSDF(p, ballPF,0.2f+chunkyTransform*0.2f);
 
     float blorbos = opSmoothUnion(ballA,opSmoothUnion(ballB,opSmoothUnion(ballC,opSmoothUnion(ballD,opSmoothUnion(ballE,ballF,0.6),0.6),0.6),0.6),0.6);
 
-    float torusesBouncingSpeed = 1.0+2.0*(bezier(beats, 8., 24.*4.0));
-    vec2 torusSize = vec2(1.0+5.0*bezier(beats, 4., 16.*4.0), 1.0);
-    float toruses = opSmoothUnion(
-            standardTorus(p-vec3(0.0,0,sin(beats*torusesBouncingSpeed)), torusSize), 
-            standardTorus(p-vec3(0.0,0,sin(beats*torusesBouncingSpeed+PI)), torusSize), 
-            0.1);
+    //float torusesBouncingSpeed = 1.0+3.0*(bezier(beats, 8., 24.*4.0));
+    //vec2 torusSize = vec2(1.0+6.0*bezier(beats, 4., 16.*4.0), 1.0);
+    //float toruses = opSmoothUnion(
+    //        standardTorus(p-vec3(0.0,0,sin(beats*torusesBouncingSpeed)), torusSize), 
+    //        standardTorus(p-vec3(0.0,0,sin(beats*torusesBouncingSpeed+PI)), torusSize), 
+    //        0.5);
 
-
-    return opUnion(toruses,opSmoothUnion(blorbos,standardTorus(p, vec2(1.0, 1.0)), 0.1));;
+    return opSmoothUnion(blorbos,standardTorus(p, vec2(1.0, 1.0)), 0.1); 
+    //return opUnion(toruses,opSmoothUnion(blorbos,standardTorus(p, vec2(1.0, 1.0)), 0.1));;
 }
 
 float sceneRingWithBallsAndDistortionAppears(vec3 p, float beats) {  
+    float rot = PI/3.0*beats;
 
-    vec3 pos2 = vec3(sin(beats+PI/3.0*1.0+PI/6.0),cos(beats+PI/3.0*1.0+PI/6.0),0); 
-    vec3 pos4 = vec3(sin(beats+PI/3.0*3.0+PI/6.0),cos(beats+PI/3.0*3.0+PI/6.0),0); 
-    vec3 pos6 = vec3(sin(beats+PI/3.0*5.0+PI/6.0),cos(beats+PI/3.0*5.0+PI/6.0),0); 
+    vec3 pos2 = vec3(sin(rot+PI/3.0*1.0),cos(rot+PI/3.0*1.0),0); 
+    vec3 pos4 = vec3(sin(rot+PI/3.0*3.0),cos(rot+PI/3.0*3.0),0); 
+    vec3 pos6 = vec3(sin(rot+PI/3.0*5.0),cos(rot+PI/3.0*5.0),0); 
 
     vec3 ballPA = pos4;
-    vec3 ballPB = pos4;
     vec3 ballPC = pos6;
-    vec3 ballPD = pos6;
-    vec3 ballPE = pos2;
     vec3 ballPF = pos2;
 
-    float ballA = sphereSDF(p, ballPA,0.2f);   
-    float ballB = sphereSDF(p, ballPB,0.2f);  
-    float ballC = sphereSDF(p, ballPC,0.2f);
-    float ballD = sphereSDF(p, ballPD,0.2f);
-    float ballE = sphereSDF(p, ballPE,0.2f);
-    float ballF = sphereSDF(p, ballPF,0.2f);
+    float ballA = sphereSDF(p, ballPA,0.4f);   
+    float ballC = sphereSDF(p, ballPC,0.4f);
+    float ballF = sphereSDF(p, ballPF,0.4f);
 
 
-    float blorbos = opSmoothUnion(ballA,opSmoothUnion(ballB,opSmoothUnion(ballC,opSmoothUnion(ballD,opSmoothUnion(ballE,ballF,0.6),0.6),0.6),0.6),0.6);
+    float blorbos = opSmoothUnion(ballA,opSmoothUnion(ballC,ballF,0.6),0.6);
 
     return opSmoothUnion(blorbos,standardTorus(p, vec2(1.0, 1.0)), 0.1);
 }
@@ -529,7 +526,7 @@ void main() {
         if (reflectionDistance <= MAX_DIST - EPSILON) {
             vec3 reflectionHit = p + reflectionDistance * reflectionDirection;
 
-            color = color*0.5 + calcEnvMaterial(reflectionHit, CAMERA_POS)*0.5;
+            color = color + calcEnvMaterial(reflectionHit, CAMERA_POS);
         }
     }
 
