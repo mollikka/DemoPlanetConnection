@@ -23,7 +23,14 @@ float SCENE1_END = 6.0*4.0;
 float TRANSITION1_END = 7.0*4.0+2.0;
 float SCENE2_END = 10.0*4.0;
 float SCENE3_END = 20.0*4.0;
-float SCENE4_END = 128.0*4.0;
+float SCENE4_END = 64.0*4.0;
+
+float atan2(vec2 dir) {
+    if (dir.x < 0.0) {
+        return atan(dir.y / dir.x) + PI;
+    }
+    return atan(dir.y / dir.x);
+}
 
 // cosine based palette, 4 vec3 params
 vec3 palette( in float t, in vec3 a, in vec3 b, in vec3 c, in vec3 d )
@@ -93,6 +100,24 @@ float sdTorus( vec3 p, vec2 t ) {
   return length(q)-t.y;
 }
 
+float sdCappedCone( vec3 p, vec3 a, vec3 b, float ra, float rb )
+{
+  float rba  = rb-ra;
+  float baba = dot(b-a,b-a);
+  float papa = dot(p-a,p-a);
+  float paba = dot(p-a,b-a)/baba;
+  float x = sqrt( papa - paba*paba*baba );
+  float cax = max(0.0,x-((paba<0.5)?ra:rb));
+  float cay = abs(paba-0.5)-0.5;
+  float k = rba*rba + baba;
+  float f = clamp( (rba*(x-ra)+paba*baba)/k, 0.0, 1.0 );
+  float cbx = x-ra - f*rba;
+  float cby = paba - f;
+  float s = (cbx<0.0 && cay<0.0) ? -1.0 : 1.0;
+  return s*sqrt( min(cax*cax + cay*cay*baba,
+                     cbx*cbx + cby*cby*baba) );
+}
+
 float moduloFilter() {
   return mod(gl_FragCoord.x, 4.0f);
 }
@@ -114,6 +139,11 @@ float bezier(float x, float start, float end) {
     if (x>end) return 1.0;
     float t = ((x-end)/(end-start))+1.0;
     return t*t * (3.0f - 2.0f * t);
+}
+
+vec3 colorBezier(float x, float start, vec3 colorStart, float end, vec3 colorEnd) {
+    float b = bezier(x, start, end);
+    return colorStart*(1.0-b) + colorEnd*(b);
 }
 
 // common items in the demo
@@ -276,17 +306,35 @@ float sceneRingWithBallsAndDistortionAppears(vec3 p, float beats) {
     float ballC = sphereSDF(p, ballPC,0.4f);
     float ballF = sphereSDF(p, ballPF,0.4f);
 
-
     float blorbos = opSmoothUnion(ballA,opSmoothUnion(ballC,ballF,0.6),0.6);
+    float portal = opSmoothUnion(blorbos,standardTorus(p, vec2(1.0, 1.0)), 0.1);
 
-    return opSmoothUnion(blorbos,standardTorus(p, vec2(1.0, 1.0)), 0.1);
+
+    float torusA = sdTorus(rotateX(beats*PI/5.0)*rotateY(beats*PI/6.0)*p, vec2(1.5, 0.05));
+    float torusB = sdTorus(rotateX(beats*PI/6.0)*rotateZ(beats*PI/5.0)*p, vec2(1.5, 0.05));
+
+    float torusClipBehind = sdCappedCone(p, vec3(0.0,0.0,0.0), vec3(0.0,0.0,-2.0), 1.0, 2.0);
+
+    float torusesEaseIn = bezier(beats,0.0,4.0);
+
+    float toruses = opSubtraction(torusClipBehind,opSmoothUnion(torusA, torusB, (1.0-torusesEaseIn)*5.0*moduloFilter() + 0.5));
+
+    return opUnion(toruses, portal);
+}
+
+vec3 spiralShader(vec2 xy, float beats) {
+    vec2 center = RESOLUTION.xy/2.0;
+    float distCenter = length(xy-center);
+    float dir = atan2(xy-center);
+    float A = 0.1;
+    return vec3(sin((dir+distCenter*A+beats)),sin((dir+distCenter*A+beats)),sin((dir+distCenter*A+beats)));
 }
 
 vec3 waterPoolShader(vec2 xy, float beats) {
     vec2 center = RESOLUTION.xy/2.0;
     float distCenter = length(xy-center);
-    float s =   (sin(beats + gl_FragCoord.x/30.0) + 
-                cos(beats + gl_FragCoord.y/30.0) +
+    float s =   (sin(beats + xy.x/30.0) + 
+                cos(beats + xy.y/30.0) +
                 sin(distCenter/(20.1+sin(beats+distCenter))))/3.0;
 
     vec3 color1 = vec3(0.88f, 0.13f, 0.48f);
@@ -296,18 +344,26 @@ vec3 waterPoolShader(vec2 xy, float beats) {
     return 2.0*(s*color1 + (1.0-s)*color3);
 }
 
-vec3 portalShader(vec2 xy, float beats) {
+bool portalRadiusCheck(vec2 xy) {
     float portalRadius = 200.0;
     vec2 center = RESOLUTION.xy/2.0;
-    if (length(xy-center) < portalRadius) {
-        return waterPoolShader(xy, beats);
+    return (length(xy-center) < portalRadius);
+}
+
+vec3 portalShader(vec2 xy, float beats) {
+    if (portalRadiusCheck(xy)) {
+        return vec3(1.0,1.0,1.0);
     }
     return vec3(0.0,0.0,0.0);
 }
 
 vec3 scene2dShader(vec2 xy) {
-    float portalShaderFadeIn = bezier(BEATS, SCENE2_END, SCENE3_END);
-    vec3 color = portalShaderFadeIn*portalShader(xy, BEATS);
+    vec3 portalFilter = colorBezier(BEATS, SCENE2_END, vec3(0.0,0.0,0.0), SCENE3_END,portalShader(xy, BEATS));
+    vec3 spiralFilter = colorBezier(BEATS, 
+        SCENE3_END, vec3(1.0,1.0,1.0), 
+        SCENE3_END+8.0, spiralShader(xy, BEATS));
+    
+    vec3 color = waterPoolShader(xy, BEATS)*spiralFilter*portalFilter;
     return color;
 }
 
@@ -513,17 +569,19 @@ vec3 phongIllumination(vec3 k_a, vec3 k_d, vec3 k_s, float alpha, vec3 p, vec3 e
     vec3 i_ambientColor = ambientLight * k_a;
     float i_y = 4.0f;
 
-    //portal light
     float portalShaderFadeIn = bezier(BEATS, SCENE2_END, SCENE3_END);
+    //portal light 1
     vec3 i_light1Pos = vec3(0.5*sin(BEATS/10.f), 0.5*sin(BEATS/10.f), -1.0f);
     vec3 i_light1Intensity = portalShaderFadeIn*vec3(0.8f, 0.2f, 0.6f);
     vec3 i_light1 = phongContribForLight(k_d, k_s, alpha, p, eye, i_light1Pos, i_light1Intensity);
 
+    //portal light 2
     vec3 i_light2Pos = vec3(0.0f, 0.0, 0.0f);
     vec3 i_light2Intensity = portalShaderFadeIn*vec3(0.1f, 0.0f, 0.4f);
     vec3 i_light2 = phongContribForLight(k_d, k_s, alpha, p, eye, i_light2Pos, i_light2Intensity);
 
-    vec3 i_light3Pos = vec3(0.0f, 4.0f, 0.0f);
+    //sun
+    vec3 i_light3Pos = vec3(2.0f, 8.0f, 0.0f);
     vec3 i_light3Intensity = vec3(1.7f, 1.7f, 1.7f);
     vec3 i_light3 = phongContribForLight(k_d, k_s, alpha, p, eye, i_light3Pos, i_light3Intensity);
 
