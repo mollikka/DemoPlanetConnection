@@ -19,7 +19,17 @@ in mat4 VIEW_MATRIX;
 
 out vec4 FRAG_COLOR;
 
+float SCENE1_END = 6.0*4.0;
+float TRANSITION1_END = 7.0*4.0+2.0;
+float SCENE2_END = 10.0*4.0;
+float SCENE3_END = 20.0*4.0;
+float SCENE4_END = 128.0*4.0;
 
+// cosine based palette, 4 vec3 params
+vec3 palette( in float t, in vec3 a, in vec3 b, in vec3 c, in vec3 d )
+{
+    return a + b*cos( 6.28318*(c*t+d) );
+}
 
 // Rotation matrix around the X axis.
 mat3 rotateX(float theta) {
@@ -272,7 +282,34 @@ float sceneRingWithBallsAndDistortionAppears(vec3 p, float beats) {
     return opSmoothUnion(blorbos,standardTorus(p, vec2(1.0, 1.0)), 0.1);
 }
 
+vec3 waterPoolShader(vec2 xy, float beats) {
+    vec2 center = RESOLUTION.xy/2.0;
+    float distCenter = length(xy-center);
+    float s =   (sin(beats + gl_FragCoord.x/30.0) + 
+                cos(beats + gl_FragCoord.y/30.0) +
+                sin(distCenter/(20.1+sin(beats+distCenter))))/3.0;
 
+    vec3 color1 = vec3(0.88f, 0.13f, 0.48f);
+    vec3 color2 = vec3(0.29f, 0.04f, 0.44f);
+    vec3 color3 = vec3(0.0f, 0.0f, 0.22f);
+    vec3 color4 = vec3(0.09f, 0.06f, 0.14f);
+    return 2.0*(s*color1 + (1.0-s)*color3);
+}
+
+vec3 portalShader(vec2 xy, float beats) {
+    float portalRadius = 200.0;
+    vec2 center = RESOLUTION.xy/2.0;
+    if (length(xy-center) < portalRadius) {
+        return waterPoolShader(xy, beats);
+    }
+    return vec3(0.0,0.0,0.0);
+}
+
+vec3 scene2dShader(vec2 xy) {
+    float portalShaderFadeIn = bezier(BEATS, SCENE2_END, SCENE3_END);
+    vec3 color = portalShaderFadeIn*portalShader(xy, BEATS);
+    return color;
+}
 
 float sceneSDF(vec3 p) {
     vec3 ball1 = vec3(sin(TIME/1000.f), cos(TIME/1000.f), 0.0f);
@@ -350,12 +387,6 @@ float sceneSDF(vec3 p) {
     float beat = 0.5*exp2(sin(BEATS*2.0*PI));
 
     //return torus2*activate(0.0);
-
-    float SCENE1_END = 6.0*4.0;
-    float TRANSITION1_END = 7.0*4.0+2.0;
-    float SCENE2_END = 10.0*4.0;
-    float SCENE3_END = 20.0*4.0;
-    float SCENE4_END = 128.0*4.0;
 
     if (BEATS < SCENE1_END)
     return introScene(p, BEATS);
@@ -482,12 +513,14 @@ vec3 phongIllumination(vec3 k_a, vec3 k_d, vec3 k_s, float alpha, vec3 p, vec3 e
     vec3 i_ambientColor = ambientLight * k_a;
     float i_y = 4.0f;
 
-    vec3 i_light1Pos = vec3(3.0f, 0.0f, 3.0f);
-    vec3 i_light1Intensity = vec3(0.4f, 0.4f, 0.4f);
+    //portal light
+    float portalShaderFadeIn = bezier(BEATS, SCENE2_END, SCENE3_END);
+    vec3 i_light1Pos = vec3(0.5*sin(BEATS/10.f), 0.5*sin(BEATS/10.f), -1.0f);
+    vec3 i_light1Intensity = portalShaderFadeIn*vec3(0.8f, 0.2f, 0.6f);
     vec3 i_light1 = phongContribForLight(k_d, k_s, alpha, p, eye, i_light1Pos, i_light1Intensity);
 
-    vec3 i_light2Pos = vec3(3.0f, i_y, 3.0f);
-    vec3 i_light2Intensity = vec3(0.4f, 0.4f, 0.4f);
+    vec3 i_light2Pos = vec3(0.0f, 0.0, 0.0f);
+    vec3 i_light2Intensity = portalShaderFadeIn*vec3(0.1f, 0.0f, 0.4f);
     vec3 i_light2 = phongContribForLight(k_d, k_s, alpha, p, eye, i_light2Pos, i_light2Intensity);
 
     vec3 i_light3Pos = vec3(0.0f, 4.0f, 0.0f);
@@ -514,7 +547,7 @@ void main() {
     vec3 color;
     if (distance > MAX_DIST - EPSILON) {
     // Didn't hit anything
-        color = vec3(0.0f, 0.0f, 0.0f);
+        color = scene2dShader(gl_FragCoord.xy);
     } else {
         vec3 p = CAMERA_POS + distance * worldDir;
         color = calcEnvMaterial(p, CAMERA_POS);
