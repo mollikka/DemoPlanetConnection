@@ -40,10 +40,13 @@
     <canvas id="c" width="1280" height="720"></canvas>
     <script type="module">
       import { run } from "./main.ts";
+      run();
       document.onclick = start;
 
       function start() {
         run();
+        alert("here we go");
+        document.onclick = null;
       }
     </script>
   </body>
