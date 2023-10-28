@@ -23,7 +23,8 @@ float SCENE1_END = 6.0*4.0;
 float TRANSITION1_END = 7.0*4.0+2.0;
 float SCENE2_END = 10.0*4.0;
 float SCENE3_END = 20.0*4.0;
-float SCENE4_END = 64.0*4.0;
+float SCENE4_END = 24.0*4.0;
+float TRANSITION2_END = 28.0*4.0+4.0;
 
 float atan2(vec2 dir) {
     if (dir.x < 0.0) {
@@ -89,7 +90,6 @@ float opSmoothUnion( float d1, float d2, float k ) {
 float opSmoothSubtraction( float d1, float d2, float k ) {
     float h = clamp( 0.5 - 0.5*(d2+d1)/k, 0.0, 1.0 );
     return mix( d2, -d1, h ) + k*h*(1.0-h); }
-
 
 float sphereSDF(vec3 p, vec3 ball, float r) {
     return length(p - ball) - r;
@@ -262,7 +262,7 @@ float sceneRingWithBallsJuggle(vec3 p, float beats) {
     float easeOut1 = bezier(beats, 24.0, 34.0);
     float chunkyTransform = (bezier(beats, 8.5, 12.0));
 
-    vec3 fuckOffPlace = vec3(0,0,-MAX_DIST*1.5); 
+    vec3 fuckOffPlace = vec3(0,0,-MAX_DIST*2.0); 
 
     vec3 ballPA = pos1 * t2A + pos4 * t2B + easeOut1*fuckOffPlace;
     vec3 ballPB = pos2 * t1A + pos4 * t1B;
@@ -271,11 +271,11 @@ float sceneRingWithBallsJuggle(vec3 p, float beats) {
     vec3 ballPE = pos5 * t2A + pos2 * t2B + easeOut1*fuckOffPlace;
     vec3 ballPF = pos6* t1A + pos2 * t1B;
 
-    float ballA = sphereSDF(p, ballPA,0.2f);   
+    float ballA = sphereSDF(p, ballPA,0.2f+0.3f*easeOut1*moduloFilter());   
     float ballB = sphereSDF(p, ballPB,0.2f+chunkyTransform*0.2f);  
-    float ballC = sphereSDF(p, ballPC,0.2f);
+    float ballC = sphereSDF(p, ballPC,0.2f+0.3f*easeOut1*moduloFilter());
     float ballD = sphereSDF(p, ballPD,0.2f+chunkyTransform*0.2f);
-    float ballE = sphereSDF(p, ballPE,0.2f);
+    float ballE = sphereSDF(p, ballPE,0.2f+0.3f*easeOut1*moduloFilter());
     float ballF = sphereSDF(p, ballPF,0.2f+chunkyTransform*0.2f);
 
     float blorbos = opSmoothUnion(ballA,opSmoothUnion(ballB,opSmoothUnion(ballC,opSmoothUnion(ballD,opSmoothUnion(ballE,ballF,0.6),0.6),0.6),0.6),0.6);
@@ -310,13 +310,10 @@ float sceneRingWithBallsAndDistortionAppears(vec3 p, float beats) {
     float portal = opSmoothUnion(blorbos,standardTorus(p, vec2(1.0, 1.0)), 0.1);
 
 
-    float torusA = sdTorus(rotateX(beats*PI/5.0)*rotateY(beats*PI/6.0)*p, vec2(1.5, 0.05));
-    float torusB = sdTorus(rotateX(beats*PI/6.0)*rotateZ(beats*PI/5.0)*p, vec2(1.5, 0.05));
-
+    float torusesEaseIn = bezier(beats,0.0,8.0);
+    float torusA = sdTorus(rotateX(beats*PI/4.0+PI/2.0)*rotateY(beats*PI/9.0+PI)*p, vec2(1.5, 0.05));
+    float torusB = sdTorus(rotateX(beats*PI/7.0+PI/2.0)*rotateZ(beats*PI/6.0+PI)*p, vec2(1.5, 0.05));
     float torusClipBehind = sdCappedCone(p, vec3(0.0,0.0,0.0), vec3(0.0,0.0,-2.0), 1.0, 2.0);
-
-    float torusesEaseIn = bezier(beats,0.0,4.0);
-
     float toruses = opSubtraction(torusClipBehind,opSmoothUnion(torusA, torusB, (1.0-torusesEaseIn)*5.0*moduloFilter() + 0.5));
 
     return opUnion(toruses, portal);
@@ -345,7 +342,8 @@ vec3 waterPoolShader(vec2 xy, float beats) {
 }
 
 bool portalRadiusCheck(vec2 xy) {
-    float portalRadius = 200.0;
+    float intoThePortalTransition = bezier(BEATS, SCENE4_END, TRANSITION2_END);
+    float portalRadius = 200.0 + 8000.0*intoThePortalTransition*intoThePortalTransition;
     vec2 center = RESOLUTION.xy/2.0;
     return (length(xy-center) < portalRadius);
 }
@@ -361,7 +359,7 @@ vec3 scene2dShader(vec2 xy) {
     vec3 portalFilter = colorBezier(BEATS, SCENE2_END, vec3(0.0,0.0,0.0), SCENE3_END,portalShader(xy, BEATS));
     vec3 spiralFilter = colorBezier(BEATS, 
         SCENE3_END, vec3(1.0,1.0,1.0), 
-        SCENE3_END+8.0, spiralShader(xy, BEATS));
+        SCENE3_END+SCENE4_END, spiralShader(xy, BEATS));
     
     vec3 color = waterPoolShader(xy, BEATS)*spiralFilter*portalFilter;
     return color;
@@ -458,6 +456,11 @@ float sceneSDF(vec3 p) {
 
     if (BEATS < SCENE4_END)
     return sceneRingWithBallsAndDistortionAppears(p, BEATS-SCENE3_END);
+
+    if (BEATS < TRANSITION2_END) {
+        vec3 tPos = p+bezier(BEATS, SCENE4_END, TRANSITION2_END)*vec3(0.0,0.0,-10.0);
+        return opUnion(sceneRingWithBallsJuggle(tPos, BEATS-SCENE3_END), sceneRingWithBallsAndDistortionAppears(tPos, BEATS-SCENE3_END));
+    }
 
     return 5.0;
 
