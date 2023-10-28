@@ -44,7 +44,6 @@ export const run = async () => {
       CAMERA_POS: vec3(0.0, 0.0, 3.0),
       CAMERA_LOOKAT: vec3(0.0, 0.0, 0.0),
       CAMERA_UP: vec3(0.0, 1.0, 0.0),
-      TIME: time,
       BEATS: beats,
     });
     shader.setResolution(config.canvas.width, config.canvas.height);
@@ -52,13 +51,7 @@ export const run = async () => {
     requestAnimationFrame(renderNext);
   };
 
-  await (await audio).play();
+  await audio.play();
 
   requestAnimationFrame(renderNext);
 };
-
-function delay(milliseconds: number) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, milliseconds);
-  });
-}

@@ -9,7 +9,6 @@ const float EPSILON = 0.0001f;
 const float STEP_CORRECTION = 1.0f; // lower -> better quality, but slower
 const float PI = 3.14159265359f;
 
-uniform float TIME;
 uniform float BEATS;
 uniform vec3 CAMERA_POS;
 uniform vec3 CAMERA_LOOKAT;
@@ -26,8 +25,8 @@ float SCENE2_END = 10.0*4.0;
 float SCENE3_END = 20.0*4.0;
 float SCENE4_END = 24.0*4.0;
 float TRANSITION2_END = 28.0*4.0+4.0;
-float SCENE5_END = 62.0*4.0;
-float DEMO_END = 64.0*4.0;
+float SCENE5_END = 52.0*4.0;
+float DEMO_END = 54.0*4.0;
 
 float atan2(vec2 dir) {
     if (dir.x < 0.0) {
@@ -126,7 +125,7 @@ float moduloFilter() {
 }
 
 float sinTimeFilter(float frequency) {
-  return 0.5*sin(frequency*TIME/1000.0)+0.5;
+  return 0.5*sin(frequency*BEATS)+0.5;
 }
 
 // lerp / activator functions
@@ -348,19 +347,26 @@ float sceneStrangeWorld(vec3 p, float beats) {
 
     float monster1 = opSmoothSubtraction(blorbos, torus,0.3f*moduloFilter()*(1.0-easeInMonster1+easeOutMonster1) + 0.3*easeInMonster1);
 
+
+    mat3 xrot = rotateX(PI/2.0f+beats);
+    float torusD = sdTorus(rotateX(gl_FragCoord.x/200.f+beats*3.0)*rotateZ(gl_FragCoord.y/200.f+beats*3.0)*p , vec2(1.5f, 0.1f));
+    float torusE = sdTorus(xrot*p , vec2(1.5f, 0.1f));
+    
+    float monster5 = opSmoothUnion(torusD, torusE, 0.5f);
+
+
+
     return monster1;
 }
 
 float sceneReturnToOurWorld(vec3 p, float beats) {
 
-    float rot = PI/3.0*beats;
-
     float easeInMonster7 = bezier(beats, 0.0, 4.0);
     float easeOutMonster7 = bezier(beats, 12.0, 20.0);
 
+    float rot = PI/3.0*beats;
+
     float multiplier = -4.0 + easeInMonster7*4.0 + easeOutMonster7*5.0;
-    //float multiplier = (TIME-6000.0)/1000.f;
-    //float multiplier = -5.0;
 
     vec3 pos2 = vec3(sin(rot+PI/3.0*1.0),cos(rot+PI/3.0*1.0),0); 
     vec3 pos4 = vec3(sin(rot+PI/3.0*3.0),cos(rot+PI/3.0*3.0),0); 
@@ -414,20 +420,45 @@ vec3 portalShader(vec2 xy, float beats) {
     return vec3(0.0,0.0,0.0);
 }
 
-vec3 scene2dShader(vec2 xy) {
+float rand(vec2 uv) {
+    const highp float a = 12.9898;
+    const highp float b = 78.233;
+    const highp float c = 43758.5453;
+    highp float dt = dot(uv, vec2(a, b));
+    highp float sn = mod(dt, 3.1415);
+    return fract(sin(sn) * c);
+}
+
+vec3 starfieldShader(vec2 xy, float beats) {
+    float t = sin(beats * rand(-xy)) * 0.5 + 0.5;
+  
+    float star = (smoothstep(0.995, 1.0, rand(xy)) * t);
+    return vec3(star);
+}
+
+vec3 scene2dShaderBack(vec2 xy) {
+    vec3 starfieldShader = starfieldShader(xy, BEATS);
     vec3 portalFilter = colorBezier(BEATS, SCENE2_END, vec3(0.0,0.0,0.0), SCENE3_END,portalShader(xy, BEATS));
+    vec3 invPortalFilter = vec3(1.0,1.0,1.0) - portalFilter;
     vec3 spiralFilter = colorBezier(BEATS, 
         SCENE3_END, vec3(1.0,1.0,1.0), 
         SCENE3_END+SCENE4_END, spiralShader(xy, BEATS));
     
     vec3 backToRealWorldFilter = colorBezier(BEATS, SCENE5_END, vec3(1.0,1.0,1.0), DEMO_END, vec3(0.0,0.0,0.0));
-    
-    vec3 color = waterPoolShader(xy, BEATS)*spiralFilter*portalFilter * backToRealWorldFilter;
+    vec3 invBackToTheRealWorldFilter = vec3(1.0,1.0,1.0) - backToRealWorldFilter;
+
+    vec3 color = starfieldShader*invPortalFilter + waterPoolShader(xy, BEATS)*spiralFilter*portalFilter * backToRealWorldFilter + invBackToTheRealWorldFilter*starfieldShader;
     return color;
 }
 
+vec3 scene2dShaderMultiply(vec2 xy) {
+    vec3 fadeOut = colorBezier(BEATS, DEMO_END+4.0, vec3(1.0,1.0,1.0), DEMO_END+10.0,vec3(0.0,0.0,0.0));
+
+    return fadeOut;
+}
+
 float sceneSDF(vec3 p) {
-    vec3 ball1 = vec3(sin(TIME/1000.f), cos(TIME/1000.f), 0.0f);
+    /*vec3 ball1 = vec3(sin(TIME/1000.f), cos(TIME/1000.f), 0.0f);
     vec3 ball2 = vec3(sin(TIME/1000.f + 2.0f/3.0f*PI), cos(TIME/1000.f + 2.0f/3.0f*PI), 0.0f);
     vec3 ball3 = vec3(sin(TIME/1000.f + 4.0f/3.0f*PI), cos(TIME/1000.f + 4.0f/3.0f*PI), 0.0f);
 
@@ -498,8 +529,7 @@ float sceneSDF(vec3 p) {
     float ballD5 = sphereSDF(p, vec3(.0,sin(TIME/5000.),0.0),0.5f); 
 
     float monster9 = opUnion(ballD1, opUnion(ballD2,opUnion(ballD3,ballD5)));
-
-    float beat = 0.5*exp2(sin(BEATS*2.0*PI));
+    float beat = 0.5*exp2(sin(BEATS*2.0*PI));*/
 
     if (BEATS < SCENE1_END)
     return introScene(p, BEATS);
@@ -524,12 +554,11 @@ float sceneSDF(vec3 p) {
     if (BEATS < SCENE5_END)
     return sceneStrangeWorld(p, BEATS - TRANSITION2_END);
     
-    if (BEATS < DEMO_END)
     return sceneReturnToOurWorld(p, BEATS - SCENE5_END);
 
     return 5.0;
 
-    if ((TIME + gl_FragCoord.x) <17000.f) {
+    /*if ((TIME + gl_FragCoord.x) <17000.f) {
     return opUnion(opIntersection(monster1, bigBall),opSubtraction(bigBall,monster2)) ;}
     if ((TIME + gl_FragCoord.x) < 22000.f) {
         return monster3;
@@ -540,7 +569,7 @@ float sceneSDF(vec3 p) {
     if ((TIME + gl_FragCoord.x) < 35000.f) {
         return monster5;
     }
-    return monster6;
+    return monster6;*/
 }
 
 vec3 rayDirection(float fieldOfView, vec2 size, vec2 fragCoord) {
@@ -673,7 +702,7 @@ void main() {
     vec3 color;
     if (distance > MAX_DIST - EPSILON) {
     // Didn't hit anything
-        color = scene2dShader(gl_FragCoord.xy);
+        color = scene2dShaderBack(gl_FragCoord.xy);
     } else {
         vec3 p = CAMERA_POS + distance * worldDir;
         color = calcEnvMaterial(p, CAMERA_POS);
@@ -690,12 +719,12 @@ void main() {
 
         if (distance > FOG_DIST) {
             
-            vec3 bgColor = scene2dShader(gl_FragCoord.xy);
+            vec3 bgColor = scene2dShaderBack(gl_FragCoord.xy);
             float fogMultiplier = (MAX_DIST-distance)/(MAX_DIST-FOG_DIST);
             color = fogMultiplier*color + (1.0-fogMultiplier)*bgColor;
         }
     }
 
-    //color = scene2dShader(gl_FragCoord.xy);
+    color = color * scene2dShaderMultiply(gl_FragCoord.xy);
     FRAG_COLOR = vec4(color, 1.0f);
 }
