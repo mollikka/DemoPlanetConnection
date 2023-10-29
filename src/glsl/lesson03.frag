@@ -24,7 +24,7 @@ float TRANSITION1_END = 7.0*4.0+2.0;
 float SCENE2_END = 10.0*4.0;
 float SCENE3_END = 20.0*4.0;
 float SCENE4_END = 24.0*4.0;
-float TRANSITION2_END = 28.0*4.0+4.0;
+float TRANSITION2_END = 28.0*4.0;
 float SCENE5_END = 52.0*4.0;
 float DEMO_END = 56.0*4.0+4.0;
 float ENCORE_END = 56.0*4.0+24.0;
@@ -119,6 +119,13 @@ float sdCappedCone( vec3 p, vec3 a, vec3 b, float ra, float rb )
   float s = (cbx<0.0 && cay<0.0) ? -1.0 : 1.0;
   return s*sqrt( min(cax*cax + cay*cay*baba,
                      cbx*cbx + cby*cby*baba) );
+}
+float sdPill( vec3 p, vec3 pos1, vec3 pos2, float r1, float r2) {
+    //float ball1 = sphereSDF(p, pos1,r1);   
+    float connector = sdCappedCone(p,pos1, pos2, r1, r2);
+    //float ball2 = sphereSDF(p, pos2,r2); 
+    return connector;
+    //return opUnion(ball1, opUnion(ball2, connector));
 }
 
 float moduloFilter() {
@@ -360,6 +367,53 @@ float sceneStrangeWorldBlorbo(vec3 p, float beats) {
     return monster1;
 }
 
+float sceneStrangeWorldOrgan(vec3 p, float beats) {
+
+    float easeIn = bezier(beats, 0.0, 4.0);
+    float easeInTwist = bezier(beats, 8.0, 12.0);
+    float invEaseInTwist = 1.0-easeInTwist;
+
+    float angle = beats/8.0*PI;
+    float fifth = 2.*PI/5.0;
+    vec3 otherEnd = vec3(6.0*easeIn, 0.0, 0.0);
+    vec3 pos1 = vec3(-3.0*easeIn,sin(angle),cos(angle));
+    vec3 pos2 = vec3(-3.0*easeIn,sin(angle+fifth),cos(angle+fifth));
+    vec3 pos3 = vec3(-3.0*easeIn,sin(angle+fifth*2.),cos(angle+fifth*2.));
+    vec3 pos4 = vec3(-3.0*easeIn,sin(angle+fifth*3.),cos(angle+fifth*3.));
+    vec3 pos5 = vec3(-3.0*easeIn,sin(angle+fifth*4.),cos(angle+fifth*4.));
+    float pill1 = sdPill(p, pos1, pos1*invEaseInTwist + easeInTwist*pos3+otherEnd, 0.15,0.15);
+    float pill2 = sdPill(p, pos2, pos2*invEaseInTwist + easeInTwist*pos4+otherEnd, 0.15,0.15);
+    float pill3 = sdPill(p, pos3, pos3*invEaseInTwist + easeInTwist*pos5+otherEnd, 0.15,0.15);
+    float pill4 = sdPill(p, pos4, pos4*invEaseInTwist + easeInTwist*pos1+otherEnd, 0.15,0.15);
+    float pill5 = sdPill(p, pos5, pos5*invEaseInTwist + easeInTwist*pos2+otherEnd, 0.15,0.15);
+
+
+    /*float pillS1 = sdPill(p, pos1, pos1*invEaseInTwist + easeInTwist*pos3+otherEnd, 0.05,0.05);
+    float pillS2 = sdPill(p, pos2, pos2*invEaseInTwist + easeInTwist*pos4+otherEnd, 0.05,0.05);
+    float pillS3 = sdPill(p, pos3, pos3*invEaseInTwist + easeInTwist*pos5+otherEnd, 0.05,0.05);
+    float pillS4 = sdPill(p, pos4, pos4*invEaseInTwist + easeInTwist*pos1+otherEnd, 0.05,0.05);
+    float pillS5 = sdPill(p, pos5, pos5*invEaseInTwist + easeInTwist*pos2+otherEnd, 0.05,0.05);
+    */
+
+    vec2 center = RESOLUTION.xy/2.0;
+    float distCenter = length(gl_FragCoord.xy-center);
+
+    float easeOutNegaball1 = bezier(beats, 2.0, 4.0);
+    float easeInNegaball4 = bezier(beats, 40., 48.0);
+    float ball1 = sphereSDF(p, vec3(0,0,0), 1.5-easeOutNegaball1*1.5);
+    float ball4 = sphereSDF(p, vec3(0,0,0), easeInNegaball4*8.0);
+
+    float animateNegaball2 = bezier(beats, 14., 40.);
+    float easeInNegaball3 = bezier(beats, 30.+1., 38.+1.);
+    vec3 negaball2Pos = vec3(0.0,0.0,-3.0) + animateNegaball2*vec3(0.0, 0.0, 6.0);
+    float ball2 = sphereSDF(p, negaball2Pos, 0.8+sin(distCenter*0.1+BEATS/2.));
+    float ball3 = sphereSDF(p, vec3(-10.0,0.0,0.0) + vec3(20.,0.0,0.0)*easeInNegaball3, 0.5+sin(BEATS+gl_FragCoord.x/10.));
+    float negaballs = opUnion(opUnion(ball1, opUnion(ball2, ball3)), ball4);
+    float pills = opUnion(pill1, opUnion(pill2, opUnion(pill3, opUnion(pill4, pill5))));
+     
+    return opSmoothSubtraction(negaballs,pills,  0.1) ;
+}
+
 float sceneReturnToOurWorld(vec3 p, float beats) {
 
     float easeInMonster7 = bezier(beats, 0.0, 4.0);
@@ -557,7 +611,7 @@ float sceneSDF(vec3 p) {
     }
 
     if (BEATS < SCENE5_END)
-    return sceneStrangeWorldBlorbo(p, BEATS - TRANSITION2_END);
+    return sceneStrangeWorldOrgan(p, BEATS - TRANSITION2_END);
     
     if (BEATS < DEMO_END)
     return sceneReturnToOurWorld(p, BEATS - SCENE5_END);
