@@ -26,7 +26,8 @@ float SCENE3_END = 20.0*4.0;
 float SCENE4_END = 24.0*4.0;
 float TRANSITION2_END = 28.0*4.0+4.0;
 float SCENE5_END = 52.0*4.0;
-float DEMO_END = 54.0*4.0;
+float DEMO_END = 56.0*4.0+4.0;
+float ENCORE_END = 56.0*4.0+24.0;
 
 float atan2(vec2 dir) {
     if (dir.x < 0.0) {
@@ -321,7 +322,7 @@ float sceneRingWithBallsAndDistortionAppears(vec3 p, float beats) {
     return opUnion(toruses, portal);
 }
 
-float sceneStrangeWorld(vec3 p, float beats) {    
+float sceneStrangeWorldBlorbo(vec3 p, float beats) {    
     vec3 runWayEnterPos = vec3(5.0,0.0,0.0);
     vec3 runWayExitPos = vec3(-5.0,0.0,0.0);
 
@@ -444,17 +445,21 @@ vec3 scene2dShaderBack(vec2 xy) {
         SCENE3_END, vec3(1.0,1.0,1.0), 
         SCENE3_END+SCENE4_END, spiralShader(xy, BEATS));
     
-    vec3 backToRealWorldFilter = colorBezier(BEATS, SCENE5_END, vec3(1.0,1.0,1.0), DEMO_END, vec3(0.0,0.0,0.0));
+    vec3 backToRealWorldFilter = colorBezier(BEATS, SCENE5_END, vec3(1.0,1.0,1.0), DEMO_END-10.0, vec3(0.0,0.0,0.0));
     vec3 invBackToTheRealWorldFilter = vec3(1.0,1.0,1.0) - backToRealWorldFilter;
 
     vec3 color = starfieldShader*invPortalFilter + waterPoolShader(xy, BEATS)*spiralFilter*portalFilter * backToRealWorldFilter + invBackToTheRealWorldFilter*starfieldShader;
     return color;
 }
 
-vec3 scene2dShaderMultiply(vec2 xy) {
-    vec3 fadeOut = colorBezier(BEATS, DEMO_END+4.0, vec3(1.0,1.0,1.0), DEMO_END+10.0,vec3(0.0,0.0,0.0));
-
-    return fadeOut;
+vec3 scene3dShaderMultiply(vec2 xy) {
+    if (BEATS < SCENE5_END) return vec3(1.0,1.0,1.0);
+    if (BEATS < DEMO_END) {
+        vec3 endingFadeIn = colorBezier(BEATS, SCENE5_END, vec3(0.0,0.0,0.0), SCENE5_END+2.0,vec3(1.0,1.0,1.0));
+        vec3 endingFadeOut = colorBezier(BEATS, DEMO_END-6.0, vec3(1.0,1.0,1.0), DEMO_END-2.0,vec3(0.0,0.0,0.0));
+        return endingFadeIn*endingFadeOut;
+    }
+    return vec3(1.0,1.0,1.0);
 }
 
 float sceneSDF(vec3 p) {
@@ -552,9 +557,13 @@ float sceneSDF(vec3 p) {
     }
 
     if (BEATS < SCENE5_END)
-    return sceneStrangeWorld(p, BEATS - TRANSITION2_END);
+    return sceneStrangeWorldBlorbo(p, BEATS - TRANSITION2_END);
     
+    if (BEATS < DEMO_END)
     return sceneReturnToOurWorld(p, BEATS - SCENE5_END);
+
+    if (BEATS < ENCORE_END)
+    return sceneStrangeWorldBlorbo(p, BEATS - DEMO_END);
 
     return 5.0;
 
@@ -723,8 +732,8 @@ void main() {
             float fogMultiplier = (MAX_DIST-distance)/(MAX_DIST-FOG_DIST);
             color = fogMultiplier*color + (1.0-fogMultiplier)*bgColor;
         }
-    }
 
-    color = color * scene2dShaderMultiply(gl_FragCoord.xy);
+        color = color * scene3dShaderMultiply(gl_FragCoord.xy);
+    }
     FRAG_COLOR = vec4(color, 1.0f);
 }
