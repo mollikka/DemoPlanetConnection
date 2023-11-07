@@ -19,15 +19,16 @@ in mat4 VIEW_MATRIX;
 
 out vec4 FRAG_COLOR;
 
-float SCENE1_END = 6.0*4.0;
-float TRANSITION1_END = 7.0*4.0+2.0;
-float SCENE2_END = 10.0*4.0;
-float SCENE3_END = 20.0*4.0;
-float SCENE4_END = 24.0*4.0;
-float TRANSITION2_END = 28.0*4.0+2.;
-float SCENE5_END = 52.0*4.0;
-float DEMO_END = 56.0*4.0+4.0;
-float ENCORE_END = 56.0*4.0+24.0;
+float SCENE1_START = 8.0;
+float SCENE1_END = 6.0*4.0+8.0;
+float TRANSITION1_END = 7.0*4.0+2.0+8.0;
+float SCENE2_END = 10.0*4.0+8.0;
+float SCENE3_END = 20.0*4.0+8.0;
+float SCENE4_END = 24.0*4.0+8.0;
+float TRANSITION2_END = 28.0*4.0+2.+8.0;
+float SCENE5_END = 52.0*4.0+8.0;
+float DEMO_END = 56.0*4.0+4.0+8.0;
+float ENCORE_END = 56.0*4.0+24.0+8.0;
 
 float atan2(vec2 dir) {
     if (dir.x < 0.0) {
@@ -653,9 +654,12 @@ float sceneSDF(vec3 p) {
 
     float monster9 = opUnion(ballD1, opUnion(ballD2,opUnion(ballD3,ballD5)));
     float beat = 0.5*exp2(sin(BEATS*2.0*PI));*/
+    
+    if (BEATS < SCENE1_START)
+    return introScene(p, 0.0);
 
     if (BEATS < SCENE1_END)
-    return introScene(p, BEATS);
+    return introScene(p, BEATS - SCENE1_START);
 
     if (BEATS < TRANSITION1_END)
     return opSmoothUnion(introScene(p, BEATS), standardTorus(p, vec2(bezier(BEATS, SCENE1_END, TRANSITION1_END))),0.1);
