@@ -20,7 +20,7 @@ in mat4 VIEW_MATRIX;
 out vec4 FRAG_COLOR;
 
 float SCENE1_START = 8.0;
-float SCENE1_END = 6.0*4.0+8.0;
+float SCENE1_END = 6.0*4.0+10.0;
 float TRANSITION1_END = 7.0*4.0+2.0+8.0;
 float SCENE2_END = 10.0*4.0+8.0;
 float SCENE3_END = 20.0*4.0+8.0;
