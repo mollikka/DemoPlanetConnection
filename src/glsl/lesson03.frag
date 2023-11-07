@@ -6,13 +6,10 @@ const float MIN_DIST = 0.0f;
 const float FOG_DIST = 40.0f;
 const float MAX_DIST = 50.0f;
 const float EPSILON = 0.0001f;
-const float STEP_CORRECTION = 1.0f; // lower -> better quality, but slower
 const float PI = 3.14159265359f;
 
 uniform float BEATS;
 uniform vec3 CAMERA_POS;
-uniform vec3 CAMERA_LOOKAT;
-uniform vec3 CAMERA_UP;
 
 in vec2 RESOLUTION;
 in mat4 VIEW_MATRIX;
@@ -35,12 +32,6 @@ float atan2(vec2 dir) {
         return atan(dir.y / dir.x) + PI;
     }
     return atan(dir.y / dir.x);
-}
-
-// cosine based palette, 4 vec3 params
-vec3 palette( in float t, in vec3 a, in vec3 b, in vec3 c, in vec3 d )
-{
-    return a + b*cos( 6.28318*(c*t+d) );
 }
 
 // Rotation matrix around the X axis.
@@ -76,20 +67,13 @@ mat3 rotateZ(float theta) {
     );
 }
 
-
-
-
 float opUnion( float d1, float d2 ) { return min(d1,d2); }
 
 float opSubtraction( float d1, float d2 ) { return max(-d1,d2); }
 
-float opIntersection( float d1, float d2 ) { return max(d1,d2); }
-
-
 float opSmoothUnion( float d1, float d2, float k ) {
     float h = clamp( 0.5 + 0.5*(d2-d1)/k, 0.0, 1.0 );
     return mix( d2, d1, h ) - k*h*(1.0-h); }
-
 
 float opSmoothSubtraction( float d1, float d2, float k ) {
     float h = clamp( 0.5 - 0.5*(d2+d1)/k, 0.0, 1.0 );
@@ -122,19 +106,14 @@ float sdCappedCone( vec3 p, vec3 a, vec3 b, float ra, float rb )
                      cbx*cbx + cby*cby*baba) );
 }
 float sdPill( vec3 p, vec3 pos1, vec3 pos2, float r1, float r2) {
-    //float ball1 = sphereSDF(p, pos1,r1);   
+    float ball1 = sphereSDF(p, pos1,r1);   
     float connector = sdCappedCone(p,pos1, pos2, r1, r2);
-    //float ball2 = sphereSDF(p, pos2,r2); 
-    return connector;
-    //return opUnion(ball1, opUnion(ball2, connector));
+    float ball2 = sphereSDF(p, pos2,r2); 
+    return opUnion(ball1, opUnion(ball2, connector));
 }
 
 float moduloFilter() {
   return mod(gl_FragCoord.x, 4.0f);
-}
-
-float sinTimeFilter(float frequency) {
-  return 0.5*sin(frequency*BEATS)+0.5;
 }
 
 // lerp / activator functions
@@ -189,20 +168,9 @@ float curtainsHeight(vec2 xy, float beats) {
 vec3 curtainsShader(vec2 xy, float beats) {
     float phase = curtainsHeight(xy, beats)*2.;
     vec3 color1 = vec3(0.4f, 0.13f, 0.88f);
-    vec3 color2 = vec3(0.29f, 0.04f, 0.44f);
     vec3 color3 = vec3(0.29f, 0.1f, 0.36f);
-    vec3 color4 = vec3(0.09f, 0.06f, 0.14f);
     return color1*bezier(phase,0.0,1.0) + color3*bezier(phase,1.0,0.0);
 }
-
-/*vec3 curtainsShader(vec2 xy, float beats) {
-    float R = curtainsHeight(vec2(xy.x+EPSILON, xy.y), beats);
-    float L = curtainsHeight(vec2(xy.x-EPSILON, xy.y), beats);
-    float T = curtainsHeight(vec2(xy.x, xy.y-EPSILON), beats);
-    float B = curtainsHeight(vec2(xy.x, xy.y+EPSILON), beats);
-    vec3 normal = -1.*normalize(vec3((L-R), (T-B), -2.0));
-    return normal;
-}*/
 
 vec3 waterPoolShader(vec2 xy, float beats) {
     vec2 center = RESOLUTION.xy/2.0;
@@ -212,9 +180,7 @@ vec3 waterPoolShader(vec2 xy, float beats) {
                 sin(distCenter/(20.1+sin(beats+distCenter))))/3.0;
 
     vec3 color1 = vec3(0.88f, 0.13f, 0.48f);
-    vec3 color2 = vec3(0.29f, 0.04f, 0.44f);
     vec3 color3 = vec3(0.0f, 0.0f, 0.22f);
-    vec3 color4 = vec3(0.09f, 0.06f, 0.14f);
     return 2.0*(s*color1 + (1.0-s)*color3);
 }
 
@@ -408,15 +374,7 @@ float sceneRingWithBallsJuggle(vec3 p, float beats) {
 
     float blorbos = opSmoothUnion(ballA,opSmoothUnion(ballB,opSmoothUnion(ballC,opSmoothUnion(ballD,opSmoothUnion(ballE,ballF,0.6),0.6),0.6),0.6),0.6);
 
-    //float torusesBouncingSpeed = 1.0+3.0*(bezier(beats, 8., 24.*4.0));
-    //vec2 torusSize = vec2(1.0+6.0*bezier(beats, 4., 16.*4.0), 1.0);
-    //float toruses = opSmoothUnion(
-    //        standardTorus(p-vec3(0.0,0,sin(beats*torusesBouncingSpeed)), torusSize), 
-    //        standardTorus(p-vec3(0.0,0,sin(beats*torusesBouncingSpeed+PI)), torusSize), 
-    //        0.5);
-
     return opSmoothUnion(blorbos,standardTorus(p, vec2(1.0, 1.0)), 0.1); 
-    //return opUnion(toruses,opSmoothUnion(blorbos,standardTorus(p, vec2(1.0, 1.0)), 0.1));;
 }
 
 float sceneRingWithBallsAndDistortionAppears(vec3 p, float beats) {  
@@ -473,15 +431,6 @@ float sceneStrangeWorldBlorbo(vec3 p, float beats) {
 
     float monster1 = opSmoothSubtraction(blorbos, torus,0.3f*moduloFilter()*(1.0-easeInMonster1+easeOutMonster1) + 0.3*easeInMonster1);
 
-
-    mat3 xrot = rotateX(PI/2.0f+beats);
-    float torusD = sdTorus(rotateX(gl_FragCoord.x/200.f+beats*3.0)*rotateZ(gl_FragCoord.y/200.f+beats*3.0)*p , vec2(1.5f, 0.1f));
-    float torusE = sdTorus(xrot*p , vec2(1.5f, 0.1f));
-    
-    float monster5 = opSmoothUnion(torusD, torusE, 0.5f);
-
-
-
     return monster1;
 }
 
@@ -521,22 +470,13 @@ float sceneStrangeWorldOrgan(vec3 p, float beats) {
     float pill4 = sdPill(p, pos4*invEaseInFinalPosition + easeInFinalPosition*finalPos4L, (pos4*invEaseInTwist + easeInTwist*pos1+otherEnd)*invEaseInFinalPosition + easeInFinalPosition*finalPos4R, 0.15,0.15);
     float pill5 = sdPill(p, pos5*invEaseInFinalPosition + easeInFinalPosition*finalPos5L, (pos5*invEaseInTwist + easeInTwist*pos2+otherEnd)*invEaseInFinalPosition + easeInFinalPosition*finalPos5R, 0.15,0.15);
 
-
-    /*float pillS1 = sdPill(p, pos1, pos1*invEaseInTwist + easeInTwist*pos3+otherEnd, 0.05,0.05);
-    float pillS2 = sdPill(p, pos2, pos2*invEaseInTwist + easeInTwist*pos4+otherEnd, 0.05,0.05);
-    float pillS3 = sdPill(p, pos3, pos3*invEaseInTwist + easeInTwist*pos5+otherEnd, 0.05,0.05);
-    float pillS4 = sdPill(p, pos4, pos4*invEaseInTwist + easeInTwist*pos1+otherEnd, 0.05,0.05);
-    float pillS5 = sdPill(p, pos5, pos5*invEaseInTwist + easeInTwist*pos2+otherEnd, 0.05,0.05);
-    */
     float backgroundBleedingIn = sphereSDF(p, vec3(0.,0.,0.), float(curtainsHeight(gl_FragCoord.xy, BEATS-TRANSITION2_END-18.) > (2.-2.2*easeOutScene))*(10.)   );
 
     vec2 center = RESOLUTION.xy/2.0;
     float distCenter = length(gl_FragCoord.xy-center);
 
     float easeOutNegaball1 = bezier(beats, 2.0, 4.0);
-    //float easeInNegaball4 = bezier(beats, 92., 96.0);
     float ball1 = sphereSDF(p, vec3(0,0,0), 1.5-easeOutNegaball1*1.5);
-    //float ball4 = sphereSDF(p, vec3(0,0,0), easeInNegaball4*8.0);
 
     float bitemarksEaseIn = bezier(beats, 40., 48.0);
     float bitemarksDistortion = bezier(beats, 40., 70.0);
@@ -582,78 +522,6 @@ float sceneReturnToOurWorld(vec3 p, float beats) {
 }
 
 float sceneSDF(vec3 p) {
-    /*vec3 ball1 = vec3(sin(TIME/1000.f), cos(TIME/1000.f), 0.0f);
-    vec3 ball2 = vec3(sin(TIME/1000.f + 2.0f/3.0f*PI), cos(TIME/1000.f + 2.0f/3.0f*PI), 0.0f);
-    vec3 ball3 = vec3(sin(TIME/1000.f + 4.0f/3.0f*PI), cos(TIME/1000.f + 4.0f/3.0f*PI), 0.0f);
-
-    float dist1 = sphereSDF(p, ball1,0.5f);   
-    float dist2 = sphereSDF(p, ball2,0.5f);  
-    float dist3 = sphereSDF(p, ball3,0.5f);  
-
-    vec3 ball4 = vec3(sin(0.0f), cos(0.0f), 0.0f);
-    float dist4 = sphereSDF(p, ball4,0.5f);
-
-    float torus = sdTorus(rotateZ(0.4f*TIME/490.f)*rotateX(TIME/1000.f)*p, vec2(0.6f, 0.4f));
-
-    float torus2 = sdTorus(rotateX(PI/2.0f)*p, vec2(1.0f, 0.1f));
-
-
-    float blorbos = opSmoothUnion(opSmoothUnion( opSmoothUnion(dist1, dist2, 0.5f), dist3, 0.5f), dist4, 0.5f);
-
-    float monster1 = opSmoothSubtraction(blorbos, torus,0.4f);
-
-    float monster2 = opSmoothUnion(blorbos, torus2, 0.2f);
-
-    float bigBall = sphereSDF(p, vec3(0,0,0),1.0f + cos(TIME/5000.f));
-
-    float monster3 = opSmoothUnion(dist1, torus2, mod(gl_FragCoord.x, 4.0f)/4.0);
-
-
-    mat3 xrot = rotateX(PI/2.0f+TIME/800.f);
-    mat3 yrot = rotateY(PI/2.0f+TIME/900.f);
-    mat3 zrot = rotateZ(PI/2.0f+TIME/1000.f);
-
-    float torusA = sdTorus(xrot*yrot*p, vec2(1.5f, 0.1f));
-    float torusB = sdTorus(yrot*zrot*p, vec2(1.4f, 0.1f));
-    float torusC = sdTorus(zrot*xrot*p, vec2(1.3f, 0.1f));
-
-
-
-    float ballA = sphereSDF(p, vec3(0,0,0),1.0f+(cos(gl_FragCoord.x/6.f+TIME/200.f)+sin(gl_FragCoord.x/5.f+TIME/200.f))/6.0);
-    float ballB = sphereSDF(p, vec3(0,0,0),0.7f+moduloFilter()/10.0f+(sin(TIME/500.f)*0.5+0.5)/4.0 ); 
-     
-    float monster4 = opSmoothUnion(ballB,opSmoothUnion(torusA, opSmoothUnion(torusB, torusC, 0.5), 0.5), 0.5);
-
-    float torusD = sdTorus(rotateX(gl_FragCoord.x/200.f+TIME/300.f)*rotateZ(gl_FragCoord.y/200.f+TIME/300.f)*p , vec2(1.5f, 0.1f));
-    float torusE = sdTorus(xrot*p , vec2(1.5f, 0.1f));
-    
-    float monster5 = opSmoothUnion(torusD, torusE, 0.5f);
-
-
-
-
-    float monster6 = sdTorus(xrot*p , vec2(1.5f, sinTimeFilter(1.0+gl_FragCoord.x/1000.0)));
-
-    float multiplier = (TIME-6000.0)/1000.f;
-    float monster7 = opSmoothUnion(blorbos, torus2, 0.2*(1.0-multiplier) + multiplier*sin(length(vec2(gl_FragCoord.x, gl_FragCoord.y)-RESOLUTION.xy/2.0)/8.f));
-
-    float ballC1 = sphereSDF(p, rotateZ(1.*PI/3.0f+TIME/1000.f)*vec3(0.0,4.0-TIME/2000.f,1.-TIME/2000.f),0.5f); 
-    float ballC2 = sphereSDF(p, rotateZ(2.*PI/3.0f+TIME/1000.f)*vec3(0.0,4.0-TIME/2000.f,1.-TIME/2000.f),0.5f); 
-    float ballC3 = sphereSDF(p, rotateZ(3.*PI/3.0f+TIME/1000.f)*vec3(0.0,4.0-TIME/2000.f,1.-TIME/2000.f),0.5f); 
-    float ballC4 = sphereSDF(p, rotateZ(4.*PI/3.0f+TIME/1000.f)*vec3(0.0,4.0-TIME/2000.f,1.-TIME/2000.f),0.5f); 
-    float ballC5 = sphereSDF(p, rotateZ(5.*PI/3.0f+TIME/1000.f)*vec3(0.0,4.0-TIME/2000.f,1.-TIME/2000.f),0.5f); 
-    float ballC6 = sphereSDF(p, rotateZ(6.*PI/3.0f+TIME/1000.f)*vec3(0.0,4.0-TIME/2000.f,1.-TIME/2000.f),0.5f); 
-
-    float monster8 = opSmoothUnion(ballC1,opSmoothUnion(ballC2,opSmoothUnion(ballC3,opSmoothUnion(ballC4, opSmoothUnion(ballC5, ballC6,3.0),2.5),2.0),1.5),1.0);
-
-
-    float ballD1 = sphereSDF(p, rotateX(TIME/5000.)*vec3(0.0,1.0,1.0),0.5f); 
-    float ballD2 = sphereSDF(p, rotateY(TIME/5000.)*vec3(1.0,0.0,1.0),0.5f); 
-    float ballD3 = sphereSDF(p, vec3(-2.0,-1.0,-2.0),0.5f); 
-    float ballD5 = sphereSDF(p, vec3(.0,sin(TIME/5000.),0.0),0.5f); 
-
-    float monster9 = opUnion(ballD1, opUnion(ballD2,opUnion(ballD3,ballD5)));
-    float beat = 0.5*exp2(sin(BEATS*2.0*PI));*/
     
     if (BEATS < SCENE1_START)
     return introScene(p, 0.0);
@@ -688,19 +556,6 @@ float sceneSDF(vec3 p) {
     return sceneStrangeWorldBlorbo(p, BEATS - DEMO_END);
 
     return 5.0;
-
-    /*if ((TIME + gl_FragCoord.x) <17000.f) {
-    return opUnion(opIntersection(monster1, bigBall),opSubtraction(bigBall,monster2)) ;}
-    if ((TIME + gl_FragCoord.x) < 22000.f) {
-        return monster3;
-    }
-    if ((TIME + gl_FragCoord.x) < 26000.f) {
-        return monster4;
-    }
-    if ((TIME + gl_FragCoord.x) < 35000.f) {
-        return monster5;
-    }
-    return monster6;*/
 }
 
 vec3 rayDirection(float fieldOfView, vec2 size, vec2 fragCoord) {
