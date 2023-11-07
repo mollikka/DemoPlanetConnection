@@ -24,7 +24,7 @@ float TRANSITION1_END = 7.0*4.0+2.0;
 float SCENE2_END = 10.0*4.0;
 float SCENE3_END = 20.0*4.0;
 float SCENE4_END = 24.0*4.0;
-float TRANSITION2_END = 28.0*4.0;
+float TRANSITION2_END = 28.0*4.0+2.;
 float SCENE5_END = 52.0*4.0;
 float DEMO_END = 56.0*4.0+4.0;
 float ENCORE_END = 56.0*4.0+24.0;
@@ -162,7 +162,124 @@ float standardTorus(vec3 p, vec2 rMultiplier) {
     return sdTorus(rotateX(PI/2.0f)*p, rMultiplier*vec2(1.0f, 0.1f));
 }
 
-// SCENES
+// 2d SCENES
+
+vec3 spiralShader(vec2 xy, float beats) {
+    vec2 center = RESOLUTION.xy/2.0;
+    float distCenter = length(xy-center);
+    float dir = atan2(xy-center);
+    float A = 0.1;
+    return vec3(sin((dir+distCenter*A+beats)),sin((dir+distCenter*A+beats)),sin((dir+distCenter*A+beats)));
+}
+
+float curtainsHeight(vec2 xy, float beats) {
+    vec2 xyCentered = xy-vec2(RESOLUTION.x,RESOLUTION.y)/2.;
+    float easeInRotation = bezier(beats, 16.0, 32.0);
+    vec2 xyTwisted = (  rotateX(easeInRotation*(beats*0.00001))*
+                        rotateY(easeInRotation*(beats*0.001))*
+                        rotateZ(easeInRotation*(beats*length(xyCentered)*0.0001))*
+                        vec3(xyCentered.x,xyCentered.y,0.0)).xy;
+    float x = xyTwisted.x/RESOLUTION.x;
+    float y = xyTwisted.y/RESOLUTION.y;
+    float phase = (0.4*sin(beats*2.1+x*80.)+sin(beats*1.15+x*40.3)+2.*sin(beats/2.+x*20.)+2.0)/8.0;
+    return phase;
+}
+
+vec3 curtainsShader(vec2 xy, float beats) {
+    float phase = curtainsHeight(xy, beats)*2.;
+    vec3 color1 = vec3(0.4f, 0.13f, 0.88f);
+    vec3 color2 = vec3(0.29f, 0.04f, 0.44f);
+    vec3 color3 = vec3(0.29f, 0.1f, 0.36f);
+    vec3 color4 = vec3(0.09f, 0.06f, 0.14f);
+    return color1*bezier(phase,0.0,1.0) + color3*bezier(phase,1.0,0.0);
+}
+
+/*vec3 curtainsShader(vec2 xy, float beats) {
+    float R = curtainsHeight(vec2(xy.x+EPSILON, xy.y), beats);
+    float L = curtainsHeight(vec2(xy.x-EPSILON, xy.y), beats);
+    float T = curtainsHeight(vec2(xy.x, xy.y-EPSILON), beats);
+    float B = curtainsHeight(vec2(xy.x, xy.y+EPSILON), beats);
+    vec3 normal = -1.*normalize(vec3((L-R), (T-B), -2.0));
+    return normal;
+}*/
+
+vec3 waterPoolShader(vec2 xy, float beats) {
+    vec2 center = RESOLUTION.xy/2.0;
+    float distCenter = length(xy-center);
+    float s =   (sin(beats + xy.x/30.0) + 
+                cos(beats + xy.y/30.0) +
+                sin(distCenter/(20.1+sin(beats+distCenter))))/3.0;
+
+    vec3 color1 = vec3(0.88f, 0.13f, 0.48f);
+    vec3 color2 = vec3(0.29f, 0.04f, 0.44f);
+    vec3 color3 = vec3(0.0f, 0.0f, 0.22f);
+    vec3 color4 = vec3(0.09f, 0.06f, 0.14f);
+    return 2.0*(s*color1 + (1.0-s)*color3);
+}
+
+bool portalRadiusCheck(vec2 xy) {
+    float intoThePortalTransition = bezier(BEATS, SCENE4_END, TRANSITION2_END);
+    float portalRadius = 200.0 + 8000.0*intoThePortalTransition*intoThePortalTransition;
+    vec2 center = RESOLUTION.xy/2.0;
+    return (length(xy-center) < portalRadius);
+}
+
+vec3 portalShader(vec2 xy, float beats) {
+    if (portalRadiusCheck(xy)) {
+        return vec3(1.0,1.0,1.0);
+    }
+    return vec3(0.0,0.0,0.0);
+}
+
+float rand(vec2 uv) {
+    const highp float a = 12.9898;
+    const highp float b = 78.233;
+    const highp float c = 43758.5453;
+    highp float dt = dot(uv, vec2(a, b));
+    highp float sn = mod(dt, 3.1415);
+    return fract(sin(sn) * c);
+}
+
+vec3 starfieldShader(vec2 xy, float beats) {
+    float t = sin(beats * rand(-xy)) * 0.5 + 0.5;
+  
+    float star = (smoothstep(0.995, 1.0, rand(xy)) * t);
+    return vec3(star);
+}
+
+vec3 scene2dShaderBack(vec2 xy) {
+    vec3 starfieldShader = starfieldShader(xy, BEATS);
+    vec3 portalFilter = colorBezier(BEATS, SCENE2_END, vec3(0.0,0.0,0.0), SCENE3_END,portalShader(xy, BEATS));
+    vec3 invPortalFilter = vec3(1.0,1.0,1.0) - portalFilter;
+    vec3 spiralFilter = colorBezier(BEATS, 
+        SCENE3_END, vec3(1.0,1.0,1.0), 
+        SCENE4_END, spiralShader(xy, BEATS));
+    vec3 curtainsFilter =   colorBezier(BEATS, TRANSITION2_END+20.0, vec3(0.,0.,0.), TRANSITION2_END+16.0+20.0, vec3(1.,1.,1.));
+                            colorBezier(BEATS, DEMO_END-9.0, vec3(1.,1.,1.), DEMO_END+8.0, vec3(0.,0.,0.));        
+    vec3 invCurtainsFilter = vec3(1.0,1.0,1.0) - curtainsFilter;
+
+    vec3 backToRealWorldFilter = colorBezier(BEATS, SCENE5_END, vec3(1.0,1.0,1.0), DEMO_END-10.0, vec3(0.0,0.0,0.0));
+    vec3 invBackToTheRealWorldFilter = vec3(1.0,1.0,1.0) - backToRealWorldFilter;
+
+    vec3 color = starfieldShader*invPortalFilter + 
+    waterPoolShader(xy, BEATS)*spiralFilter*portalFilter * invCurtainsFilter +
+    curtainsFilter*curtainsShader(xy, BEATS-TRANSITION2_END-18.)*backToRealWorldFilter + 
+    invBackToTheRealWorldFilter*starfieldShader;
+    
+    return color;
+}
+
+vec3 scene3dShaderMultiply(vec2 xy) {
+    if (BEATS < SCENE5_END) return vec3(1.0,1.0,1.0);
+    if (BEATS < DEMO_END) {
+        vec3 endingFadeIn = colorBezier(BEATS, SCENE5_END, vec3(0.0,0.0,0.0), SCENE5_END+2.0,vec3(1.0,1.0,1.0));
+        vec3 endingFadeOut = colorBezier(BEATS, DEMO_END-6.0, vec3(1.0,1.0,1.0), DEMO_END-2.0,vec3(0.0,0.0,0.0));
+        return endingFadeIn*endingFadeOut;
+    }
+    return vec3(1.0,1.0,1.0);
+}
+
+// 3d SCENES
 
 float introScene(vec3 p, float beats) {
     mat3 rot = rotateZ(PI*bezier(beats, 4.0*4.0, 6.0*4.0))*rotateX(PI/4.0*bezier(beats, 4.0*4.0+2.0, 6.0*4.0));
@@ -368,10 +485,12 @@ float sceneStrangeWorldBlorbo(vec3 p, float beats) {
 }
 
 float sceneStrangeWorldOrgan(vec3 p, float beats) {
-
-    float easeIn = bezier(beats, 0.0, 4.0);
-    float easeInTwist = bezier(beats, 8.0, 12.0);
+    float easeIn = bezier(beats, 0.0, 8.0);
+    float easeInTwist = bezier(beats, 6.0, 10.0);
     float invEaseInTwist = 1.0-easeInTwist;
+    float easeInFinalPosition = bezier(beats, 64.,76.);
+    float invEaseInFinalPosition = 1.-easeInFinalPosition;
+    float easeOutScene = bezier(beats, 62., 100.0);
 
     float angle = beats/8.0*PI;
     float fifth = 2.*PI/5.0;
@@ -381,11 +500,25 @@ float sceneStrangeWorldOrgan(vec3 p, float beats) {
     vec3 pos3 = vec3(-3.0*easeIn,sin(angle+fifth*2.),cos(angle+fifth*2.));
     vec3 pos4 = vec3(-3.0*easeIn,sin(angle+fifth*3.),cos(angle+fifth*3.));
     vec3 pos5 = vec3(-3.0*easeIn,sin(angle+fifth*4.),cos(angle+fifth*4.));
-    float pill1 = sdPill(p, pos1, pos1*invEaseInTwist + easeInTwist*pos3+otherEnd, 0.15,0.15);
-    float pill2 = sdPill(p, pos2, pos2*invEaseInTwist + easeInTwist*pos4+otherEnd, 0.15,0.15);
-    float pill3 = sdPill(p, pos3, pos3*invEaseInTwist + easeInTwist*pos5+otherEnd, 0.15,0.15);
-    float pill4 = sdPill(p, pos4, pos4*invEaseInTwist + easeInTwist*pos1+otherEnd, 0.15,0.15);
-    float pill5 = sdPill(p, pos5, pos5*invEaseInTwist + easeInTwist*pos2+otherEnd, 0.15,0.15);
+
+
+    vec3 finalPos1L = vec3(-3.0,-1.0,sin(beats/4.+PI/5.*0.));
+    vec3 finalPos2L = vec3(-3.0,-0.5,sin(beats/4.+PI/5.*1.));
+    vec3 finalPos3L = vec3(-3.0,0.0,sin(beats/4.+PI/5.*2.));
+    vec3 finalPos4L = vec3(-3.0,0.5,sin(beats/4.+PI/5.*3.));
+    vec3 finalPos5L = vec3(-3.0,1.0,sin(beats/4.+PI/5.*4.));
+
+    vec3 finalPos1R = vec3(3.0,-1.0,sin(beats/4.+PI+PI/5.*0.));
+    vec3 finalPos2R = vec3(3.0,-0.5,sin(beats/4.+PI+PI/5.*1.));
+    vec3 finalPos3R = vec3(3.0,0.0,sin(beats/4.+PI+PI/5.*2.));
+    vec3 finalPos4R = vec3(3.0,0.5,sin(beats/4.+PI+PI/5.*3.));
+    vec3 finalPos5R = vec3(3.0,1.0,sin(beats/4.+PI+PI/5.*4.));
+
+    float pill1 = sdPill(p, pos1*invEaseInFinalPosition + easeInFinalPosition*finalPos1L, (pos1*invEaseInTwist + easeInTwist*pos3+otherEnd)*invEaseInFinalPosition + easeInFinalPosition*finalPos1R, 0.15,0.15);
+    float pill2 = sdPill(p, pos2*invEaseInFinalPosition + easeInFinalPosition*finalPos2L, (pos2*invEaseInTwist + easeInTwist*pos4+otherEnd)*invEaseInFinalPosition + easeInFinalPosition*finalPos2R, 0.15,0.15);
+    float pill3 = sdPill(p, pos3*invEaseInFinalPosition + easeInFinalPosition*finalPos3L, (pos3*invEaseInTwist + easeInTwist*pos5+otherEnd)*invEaseInFinalPosition + easeInFinalPosition*finalPos3R, 0.15,0.15);
+    float pill4 = sdPill(p, pos4*invEaseInFinalPosition + easeInFinalPosition*finalPos4L, (pos4*invEaseInTwist + easeInTwist*pos1+otherEnd)*invEaseInFinalPosition + easeInFinalPosition*finalPos4R, 0.15,0.15);
+    float pill5 = sdPill(p, pos5*invEaseInFinalPosition + easeInFinalPosition*finalPos5L, (pos5*invEaseInTwist + easeInTwist*pos2+otherEnd)*invEaseInFinalPosition + easeInFinalPosition*finalPos5R, 0.15,0.15);
 
 
     /*float pillS1 = sdPill(p, pos1, pos1*invEaseInTwist + easeInTwist*pos3+otherEnd, 0.05,0.05);
@@ -394,24 +527,32 @@ float sceneStrangeWorldOrgan(vec3 p, float beats) {
     float pillS4 = sdPill(p, pos4, pos4*invEaseInTwist + easeInTwist*pos1+otherEnd, 0.05,0.05);
     float pillS5 = sdPill(p, pos5, pos5*invEaseInTwist + easeInTwist*pos2+otherEnd, 0.05,0.05);
     */
+    float backgroundBleedingIn = sphereSDF(p, vec3(0.,0.,0.), float(curtainsHeight(gl_FragCoord.xy, BEATS-TRANSITION2_END-18.) > (2.-2.2*easeOutScene))*(10.)   );
 
     vec2 center = RESOLUTION.xy/2.0;
     float distCenter = length(gl_FragCoord.xy-center);
 
     float easeOutNegaball1 = bezier(beats, 2.0, 4.0);
-    float easeInNegaball4 = bezier(beats, 40., 48.0);
+    //float easeInNegaball4 = bezier(beats, 92., 96.0);
     float ball1 = sphereSDF(p, vec3(0,0,0), 1.5-easeOutNegaball1*1.5);
-    float ball4 = sphereSDF(p, vec3(0,0,0), easeInNegaball4*8.0);
+    //float ball4 = sphereSDF(p, vec3(0,0,0), easeInNegaball4*8.0);
 
-    float animateNegaball2 = bezier(beats, 14., 40.);
-    float easeInNegaball3 = bezier(beats, 30.+1., 38.+1.);
+    float bitemarksEaseIn = bezier(beats, 40., 48.0);
+    float bitemarksDistortion = bezier(beats, 40., 70.0);
+    float invBitemarksDistortion = 1.0-bitemarksDistortion;
+    float bitemarks = sdPill(p, vec3(-3.0, 0.0,easeInFinalPosition*100.), vec3(3.0,0.0,easeInFinalPosition*3.),
+    bitemarksEaseIn*(0.2+moduloFilter()/32.0*bitemarksDistortion + sin(gl_FragCoord.x/20.0+beats) * invBitemarksDistortion),
+    bitemarksEaseIn*(0.2+sin(gl_FragCoord.x/20.0+PI+beats) * bitemarksDistortion + moduloFilter()/32.0*invBitemarksDistortion ));
+
+    float animateNegaball2 = bezier(beats, 10., 40.);
+    float easeInNegaball3 = bezier(beats, 30.-1., 38.-1.);
     vec3 negaball2Pos = vec3(0.0,0.0,-3.0) + animateNegaball2*vec3(0.0, 0.0, 6.0);
     float ball2 = sphereSDF(p, negaball2Pos, 0.8+sin(distCenter*0.1+BEATS/2.));
     float ball3 = sphereSDF(p, vec3(-10.0,0.0,0.0) + vec3(20.,0.0,0.0)*easeInNegaball3, 0.5+sin(BEATS+gl_FragCoord.x/10.));
-    float negaballs = opUnion(opUnion(ball1, opUnion(ball2, ball3)), ball4);
+    float negaballs = opUnion(ball1, opUnion(ball2, ball3));//, ball4);
     float pills = opUnion(pill1, opUnion(pill2, opUnion(pill3, opUnion(pill4, pill5))));
-     
-    return opSmoothSubtraction(negaballs,pills,  0.1) ;
+    
+    return opSubtraction(backgroundBleedingIn,opSmoothSubtraction(opUnion(negaballs,bitemarks),pills,  0.1)) ;
 }
 
 float sceneReturnToOurWorld(vec3 p, float beats) {
@@ -434,86 +575,9 @@ float sceneReturnToOurWorld(vec3 p, float beats) {
     float blorbos = opSmoothUnion( opSmoothUnion(dist1, dist2, 0.5f), dist3, 0.5f);
     float torus2 = sdTorus(rotateX(PI/2.0f)*p, vec2(1.0f, 0.1f));
 
-    float monster7 = opSmoothUnion(blorbos, torus2, 0.2*(1.0-multiplier) + multiplier*sin(length(vec2(gl_FragCoord.x, gl_FragCoord.y)-RESOLUTION.xy/2.0)/8.f));
+    float monster7 = opSmoothUnion(blorbos, torus2, 0.2*(1.0-multiplier) + multiplier*sin(length(vec2(gl_FragCoord.x, gl_FragCoord.y)-RESOLUTION.xy/2.0)/16.f));
 
     return monster7;
-}
-
-vec3 spiralShader(vec2 xy, float beats) {
-    vec2 center = RESOLUTION.xy/2.0;
-    float distCenter = length(xy-center);
-    float dir = atan2(xy-center);
-    float A = 0.1;
-    return vec3(sin((dir+distCenter*A+beats)),sin((dir+distCenter*A+beats)),sin((dir+distCenter*A+beats)));
-}
-
-vec3 waterPoolShader(vec2 xy, float beats) {
-    vec2 center = RESOLUTION.xy/2.0;
-    float distCenter = length(xy-center);
-    float s =   (sin(beats + xy.x/30.0) + 
-                cos(beats + xy.y/30.0) +
-                sin(distCenter/(20.1+sin(beats+distCenter))))/3.0;
-
-    vec3 color1 = vec3(0.88f, 0.13f, 0.48f);
-    vec3 color2 = vec3(0.29f, 0.04f, 0.44f);
-    vec3 color3 = vec3(0.0f, 0.0f, 0.22f);
-    vec3 color4 = vec3(0.09f, 0.06f, 0.14f);
-    return 2.0*(s*color1 + (1.0-s)*color3);
-}
-
-bool portalRadiusCheck(vec2 xy) {
-    float intoThePortalTransition = bezier(BEATS, SCENE4_END, TRANSITION2_END);
-    float portalRadius = 200.0 + 8000.0*intoThePortalTransition*intoThePortalTransition;
-    vec2 center = RESOLUTION.xy/2.0;
-    return (length(xy-center) < portalRadius);
-}
-
-vec3 portalShader(vec2 xy, float beats) {
-    if (portalRadiusCheck(xy)) {
-        return vec3(1.0,1.0,1.0);
-    }
-    return vec3(0.0,0.0,0.0);
-}
-
-float rand(vec2 uv) {
-    const highp float a = 12.9898;
-    const highp float b = 78.233;
-    const highp float c = 43758.5453;
-    highp float dt = dot(uv, vec2(a, b));
-    highp float sn = mod(dt, 3.1415);
-    return fract(sin(sn) * c);
-}
-
-vec3 starfieldShader(vec2 xy, float beats) {
-    float t = sin(beats * rand(-xy)) * 0.5 + 0.5;
-  
-    float star = (smoothstep(0.995, 1.0, rand(xy)) * t);
-    return vec3(star);
-}
-
-vec3 scene2dShaderBack(vec2 xy) {
-    vec3 starfieldShader = starfieldShader(xy, BEATS);
-    vec3 portalFilter = colorBezier(BEATS, SCENE2_END, vec3(0.0,0.0,0.0), SCENE3_END,portalShader(xy, BEATS));
-    vec3 invPortalFilter = vec3(1.0,1.0,1.0) - portalFilter;
-    vec3 spiralFilter = colorBezier(BEATS, 
-        SCENE3_END, vec3(1.0,1.0,1.0), 
-        SCENE3_END+SCENE4_END, spiralShader(xy, BEATS));
-    
-    vec3 backToRealWorldFilter = colorBezier(BEATS, SCENE5_END, vec3(1.0,1.0,1.0), DEMO_END-10.0, vec3(0.0,0.0,0.0));
-    vec3 invBackToTheRealWorldFilter = vec3(1.0,1.0,1.0) - backToRealWorldFilter;
-
-    vec3 color = starfieldShader*invPortalFilter + waterPoolShader(xy, BEATS)*spiralFilter*portalFilter * backToRealWorldFilter + invBackToTheRealWorldFilter*starfieldShader;
-    return color;
-}
-
-vec3 scene3dShaderMultiply(vec2 xy) {
-    if (BEATS < SCENE5_END) return vec3(1.0,1.0,1.0);
-    if (BEATS < DEMO_END) {
-        vec3 endingFadeIn = colorBezier(BEATS, SCENE5_END, vec3(0.0,0.0,0.0), SCENE5_END+2.0,vec3(1.0,1.0,1.0));
-        vec3 endingFadeOut = colorBezier(BEATS, DEMO_END-6.0, vec3(1.0,1.0,1.0), DEMO_END-2.0,vec3(0.0,0.0,0.0));
-        return endingFadeIn*endingFadeOut;
-    }
-    return vec3(1.0,1.0,1.0);
 }
 
 float sceneSDF(vec3 p) {
@@ -727,7 +791,6 @@ vec3 phongContribForLight(vec3 k_d, vec3 k_s, float alpha, vec3 p, vec3 eye, vec
 vec3 phongIllumination(vec3 k_a, vec3 k_d, vec3 k_s, float alpha, vec3 p, vec3 eye) {
     const vec3 ambientLight = vec3(0.5f, 0.5f, 0.5f);
     vec3 i_ambientColor = ambientLight * k_a;
-    float i_y = 4.0f;
 
     float portalShaderFadeIn = bezier(BEATS, SCENE2_END, SCENE3_END);
     //portal light 1
@@ -749,9 +812,20 @@ vec3 phongIllumination(vec3 k_a, vec3 k_d, vec3 k_s, float alpha, vec3 p, vec3 e
 }
 
 vec3 calcEnvMaterial(vec3 p, vec3 eye) {
-    vec3 i_K_a = vec3(0.0f, 0.0f, 0.0f);
-    vec3 i_K_d = vec3(0.2f, 0.2, 0.2f);
-    vec3 i_K_s = vec3(1.0f, 1.0f, 1.0f);
+    float strangeWorld = bezier(BEATS, SCENE4_END, TRANSITION2_END) * (1.0-bezier(BEATS, SCENE5_END, DEMO_END));
+
+    vec3 ambientInSpace = vec3(0.0, 0.0, 0.0);
+    vec3 ambientInStrangeWorld = vec3(0.01, 0.0, 0.03);
+    vec3 i_K_a = (1.0-strangeWorld)*ambientInSpace + strangeWorld*ambientInStrangeWorld;
+    
+    vec3 diffuseInSpace = vec3(0.2, 0.2, 0.2);
+    vec3 diffuseInStrangeWorld = vec3(0.1, 0.0, 0.4);
+    vec3 i_K_d = (1.0-strangeWorld)*diffuseInSpace + strangeWorld*diffuseInStrangeWorld;
+
+    vec3 shinyInSpace = vec3(1.0, 1.0, 1.0);
+    vec3 shinyInStrangeWorld = vec3(0.8, 0.1, 0.8);
+    vec3 i_K_s = (1.0-strangeWorld)*shinyInSpace + strangeWorld*shinyInStrangeWorld;
+
     float i_shininess = 10.0f;
     return phongIllumination(i_K_a, i_K_d, i_K_s, i_shininess, p, eye);
 }
@@ -763,9 +837,10 @@ void main() {
     float distance = shortestDistanceToSurface(CAMERA_POS, worldDir);
 
     vec3 color;
+    vec3 backgroundColor = scene2dShaderBack(gl_FragCoord.xy);
     if (distance > MAX_DIST - EPSILON) {
     // Didn't hit anything
-        color = scene2dShaderBack(gl_FragCoord.xy);
+        color = backgroundColor;
     } else {
         vec3 p = CAMERA_POS + distance * worldDir;
         color = calcEnvMaterial(p, CAMERA_POS);
@@ -774,20 +849,20 @@ void main() {
         vec3 reflectionDirection = reflect(worldDir, pNormal);
         float reflectionDistance = shortestDistanceToSurface(p+pNormal*0.01, reflectionDirection);
         
-        if (reflectionDistance <= MAX_DIST - EPSILON) {
+        if ((BEATS < TRANSITION2_END || BEATS > SCENE5_END) && reflectionDistance <= MAX_DIST - EPSILON) {
             vec3 reflectionHit = p + reflectionDistance * reflectionDirection;
 
             color = color + calcEnvMaterial(reflectionHit, CAMERA_POS);
         }
 
         if (distance > FOG_DIST) {
-            
-            vec3 bgColor = scene2dShaderBack(gl_FragCoord.xy);
             float fogMultiplier = (MAX_DIST-distance)/(MAX_DIST-FOG_DIST);
-            color = fogMultiplier*color + (1.0-fogMultiplier)*bgColor;
+            color = fogMultiplier*color + (1.0-fogMultiplier)*backgroundColor;
         }
 
-        color = color * scene3dShaderMultiply(gl_FragCoord.xy);
+        vec3 multiplier = scene3dShaderMultiply(gl_FragCoord.xy);
+        color = color*multiplier + backgroundColor*(vec3(1)-multiplier);
     }
+
     FRAG_COLOR = vec4(color, 1.0f);
 }
