@@ -435,8 +435,8 @@ float sceneStrangeWorldBlorbo(vec3 p, float beats) {
 }
 
 float sceneStrangeWorldOrgan(vec3 p, float beats) {
-    float easeIn = bezier(beats, 0.0, 8.0);
-    float easeInTwist = bezier(beats, 6.0, 10.0);
+    float easeIn = bezier(beats, 0.0, 4.0);
+    float easeInTwist = bezier(beats, 4.0, 10.0);
     float invEaseInTwist = 1.0-easeInTwist;
     float easeInFinalPosition = bezier(beats, 64.,76.);
     float invEaseInFinalPosition = 1.-easeInFinalPosition;
