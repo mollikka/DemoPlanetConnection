@@ -1,14 +1,14 @@
 {
-  "name": "demopohja",
+  "name": "demo1",
   "version": "0.1.0",
-  "description": "Pohjat demoworkshopille",
+  "description": "My first webgl demo based on a demo workshop by Ilkka Hänninen",
   "scripts": {
     "dev": "parcel src/index.html --no-cache",
     "clean": "rm -rf .parcel-cache && rm -rf dist",
     "build": "parcel build src/index.html --no-cache --no-source-maps --dist-dir dist",
     "serve": "npx http-serve dist"
   },
-  "author": "Ilkka Hänninen",
+  "author": "Lauri Tervonen",
   "license": "ISC",
   "devDependencies": {
     "@parcel/transformer-glsl": "^2.10.0",
