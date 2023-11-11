@@ -7,6 +7,12 @@ import fragmentShaderSrc from "./glsl/lesson03.frag";
 import bloomShaderSrc from "./glsl/bloom.frag";
 import { vec3 } from "./vectors";
 
+/*let framecount = 0;
+setInterval(() => {
+  console.log(framecount * 5);
+  framecount = 0;
+}, 200);*/
+
 export const init = async () => {
   const infoLoading =
     document.querySelector<HTMLCanvasElement>("#info-loading")!;
@@ -53,6 +59,7 @@ export const init = async () => {
     screen.render();
 
     requestAnimationFrame(renderNext);
+    //framecount += 1;
   };
 
   infoLoading.hidden = true;

@@ -546,7 +546,7 @@ float sceneSDF(vec3 p) {
 
     if (BEATS < TRANSITION2_END) {
         vec3 tPos = p+bezier(BEATS, SCENE4_END, TRANSITION2_END)*vec3(0.0,0.0,-10.0);
-        return opUnion(sceneRingWithBallsJuggle(tPos, BEATS-SCENE3_END), sceneRingWithBallsAndDistortionAppears(tPos, BEATS-SCENE3_END));
+        return /*opUnion(sceneRingWithBallsJuggle(tPos, BEATS-SCENE3_END), */sceneRingWithBallsAndDistortionAppears(tPos, BEATS-SCENE3_END)/*)*/;
     }
 
     if (BEATS < SCENE5_END)
@@ -711,7 +711,7 @@ void main() {
         vec3 reflectionDirection = reflect(worldDir, pNormal);
         float reflectionDistance = shortestDistanceToSurface(p+pNormal*0.01, reflectionDirection);
         
-        if ((BEATS < TRANSITION2_END || BEATS > SCENE5_END) && (BEATS < ENCORE_END-4.) && reflectionDistance <= MAX_DIST - EPSILON) {
+        if ((BEATS < SCENE3_END || BEATS > SCENE5_END) && (BEATS < DEMO_END) && reflectionDistance <= MAX_DIST - EPSILON) {
             vec3 reflectionHit = p + reflectionDistance * reflectionDirection;
 
             color = color + calcEnvMaterial(reflectionHit, CAMERA_POS);
