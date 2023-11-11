@@ -627,7 +627,7 @@ vec3 phongContribForLight(vec3 k_d, vec3 k_s, float alpha, vec3 p, vec3 eye, vec
     // Light not visible from this point on the surface
         return vec3(0.0f, 0.0f, 0.0f);
     }
-    if (rayObscured(lightPos, p)) return vec3(0,0,0);
+    if ((BEATS < TRANSITION2_END || BEATS > SCENE5_END) && (rayObscured(lightPos, p))) return vec3(0,0,0);
 
     if (dotRV < 0.0f) {
     // Light reflection in opposite direction as viewer, apply only diffuse
