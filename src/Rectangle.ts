@@ -33,6 +33,7 @@ export class Rectangle {
   }
 
   render() {
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
     this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
   }
 }

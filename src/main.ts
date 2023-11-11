@@ -1,8 +1,10 @@
+import { RenderBuffer } from "./RenderBuffer";
 import { Rectangle } from "./Rectangle";
 import { ShaderProgram } from "./ShaderProgram";
 import { config } from "./config";
 import vertexShaderSrc from "./glsl/default.vert";
 import fragmentShaderSrc from "./glsl/lesson03.frag";
+import bloomShaderSrc from "./glsl/bloom.frag";
 import { vec3 } from "./vectors";
 
 export const init = async () => {
@@ -22,7 +24,9 @@ export const init = async () => {
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 
   const screen = new Rectangle(gl);
+  const buffer = new RenderBuffer(gl);
   const shader = new ShaderProgram(gl, vertexShaderSrc, fragmentShaderSrc);
+  const shaderBloom = new ShaderProgram(gl, vertexShaderSrc, bloomShaderSrc);
   const [shaderVertexPos] = shader.vertexAttributes("VERTEX_POS");
   const bpm = 120;
 
@@ -32,7 +36,7 @@ export const init = async () => {
     const seconds = audio.currentTime;
     const beats = (seconds / 60.0) * bpm;
 
-    screen.bind(shaderVertexPos);
+    buffer.bind(shaderVertexPos);
     shader.use();
     shader.set({
       CAMERA_POS: vec3(0.0, 0.0, 3.0),
@@ -41,7 +45,13 @@ export const init = async () => {
       BEATS: beats,
     });
     shader.setResolution(config.canvas.width, config.canvas.height);
+    buffer.render();
+
+    screen.bind(shaderVertexPos);
+    shaderBloom.use();
+    shaderBloom.setResolution(config.canvas.width, config.canvas.height);
     screen.render();
+
     requestAnimationFrame(renderNext);
   };
 
