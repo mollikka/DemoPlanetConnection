@@ -431,7 +431,10 @@ float sceneStrangeWorldBlorbo(vec3 p, float beats) {
 
     float monster1 = opSmoothSubtraction(blorbos, torus,0.3f*moduloFilter()*(1.0-easeInMonster1+easeOutMonster1) + 0.3*easeInMonster1);
 
-    return monster1;
+    float easeInFirstBallReturn = bezier(beats, 16.0, 17.0);    
+    float firstBallReturn = sphereSDF(p, vec3(0.0,0.0,0.0), easeInFirstBallReturn*0.455);   
+
+    return opUnion(monster1, firstBallReturn);
 }
 
 float sceneStrangeWorldOrgan(vec3 p, float beats) {
@@ -708,7 +711,7 @@ void main() {
         vec3 reflectionDirection = reflect(worldDir, pNormal);
         float reflectionDistance = shortestDistanceToSurface(p+pNormal*0.01, reflectionDirection);
         
-        if ((BEATS < TRANSITION2_END || BEATS > SCENE5_END) && reflectionDistance <= MAX_DIST - EPSILON) {
+        if ((BEATS < TRANSITION2_END || BEATS > SCENE5_END) && (BEATS < ENCORE_END-4.) && reflectionDistance <= MAX_DIST - EPSILON) {
             vec3 reflectionHit = p + reflectionDistance * reflectionDirection;
 
             color = color + calcEnvMaterial(reflectionHit, CAMERA_POS);
