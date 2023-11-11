@@ -16,38 +16,41 @@
       #c {
         width: 100%;
       }
-      .progressbar {
+      .info {
         position: absolute;
-        top: 47%;
-        bottom: 47%;
+        top: 10%;
+        bottom: 80%;
         left: 20%;
         right: 20%;
-        border: 3px solid white;
-        padding: 3px;
-      }
-      .progressbar * {
-        display: flex;
+        background-color: rgb(255, 255, 255);
+        padding: 5px;
         justify-content: center;
+      }
+      .info * {
+        display: flex;
         align-items: center;
         text-transform: uppercase;
-        background: white;
-        height: 100%;
         font-family: monospace;
       }
     </style>
   </head>
   <body>
+    <div class="info" id="info-play" hidden>
+      <p>Lauri demo 1</p>
+      <p>
+        Enter: start demo | Spacebar: Pause/unpause | Arrow right: Skip forwards
+        | Arrow left: Skip backwards
+      </p>
+    </div>
+    <div class="info" id="info-loading">
+      <p>Loading . . .</p>
+    </div>
     <canvas id="c" width="1280" height="720"></canvas>
     <script type="module">
-      import { run } from "./main.ts";
-      run();
-      document.onclick = start;
-
-      function start() {
-        run();
-        alert("here we go");
-        document.onclick = null;
-      }
+      import { init } from "./main.ts";
+      window.onload = function () {
+        init();
+      };
     </script>
   </body>
 </html>
